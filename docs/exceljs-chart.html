@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>How to add a chart in ExcelJS — bar, line and pie charts in .xlsx</title>
 <meta name="description" content="ExcelJS cannot create charts. Here is how to add a native bar, line or pie chart to a workbook ExcelJS produced, in a few lines of Node.js.">
-<link rel="canonical" href="https://ritusmoikaushik.github.io/xlchart/exceljs-chart.html">
+<link rel="canonical" href="https://ritusmoikaushik.github.io/chartsheet/exceljs-chart.html">
 <meta property="og:title" content="How to add a chart in ExcelJS">
 <meta property="og:description" content="ExcelJS cannot create charts. Here is how to add one anyway.">
 <link rel="stylesheet" href="style.css">
@@ -20,13 +20,13 @@
 <body>
 <header class="site">
   <div class="wrap">
-    <a class="brand" href="./">xlchart</a>
+    <a class="brand" href="./">chartsheet</a>
     <nav>
       <a href="exceljs-chart.html">ExcelJS</a>
       <a href="sheetjs-chart.html">SheetJS</a>
       <a href="charts-disappearing.html">Charts disappearing</a>
       <a href="api.html">API</a>
-      <a href="https://github.com/ritusmoikaushik/xlchart">GitHub</a>
+      <a href="https://github.com/ritusmoikaushik/chartsheet">GitHub</a>
     </nav>
   </div>
 </header>
@@ -42,11 +42,11 @@
     <code>addChart</code>, which writes the chart parts ExcelJS omits.</p>
   </div>
 
-  <div class="install">npm install xlchart</div>
+  <div class="install">npm install chartsheet</div>
 
   <h2>A bar chart</h2>
   <pre><code>const ExcelJS = require('exceljs')
-const { addChart } = require('xlchart')
+const { addChart } = require('chartsheet')
 const fs = require('fs')
 
 const wb = new ExcelJS.Workbook()
@@ -101,7 +101,7 @@ fs.writeFileSync('report.xlsx', buffer)</code></pre>
 })</code></pre>
 
   <h2>Several charts at once</h2>
-  <pre><code>const { addCharts } = require('xlchart')
+  <pre><code>const { addCharts } = require('chartsheet')
 
 buffer = await addCharts(buffer, [barSpec, lineSpec, pieSpec])</code></pre>
 
@@ -132,7 +132,7 @@ buffer = await addCharts(buffer, [barSpec, lineSpec, pieSpec])</code></pre>
   <h2>If Excel refuses to open the result</h2>
   <p>Excel says only <em>"we found a problem with some content"</em>. Ask the validator what is
   actually wrong:</p>
-  <pre><code>const { validate } = require('xlchart')
+  <pre><code>const { validate } = require('chartsheet')
 console.log(await validate(buffer))</code></pre>
 
   <h2>Questions</h2>
@@ -157,7 +157,7 @@ console.log(await validate(buffer))</code></pre>
 
 <footer class="site">
   <div class="wrap">
-    <p>MIT licensed. <a href="https://github.com/ritusmoikaushik/xlchart">Source on GitHub</a>.
+    <p>MIT licensed. <a href="https://github.com/ritusmoikaushik/chartsheet">Source on GitHub</a>.
     Microsoft and Excel are trademarks of Microsoft Corporation; this project is not affiliated with
     or endorsed by Microsoft.</p>
   </div>

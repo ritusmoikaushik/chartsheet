@@ -1,5 +1,5 @@
 {
-  "name": "xlchart",
+  "name": "chartsheet",
   "version": "0.1.0",
   "description": "Native charts for Microsoft Excel .xlsx files built with ExcelJS or SheetJS — the chart support neither library has.",
   "keywords": [
@@ -13,13 +13,13 @@
     "graph",
     "xlsx-chart"
   ],
-  "homepage": "https://ritusmoikaushik.github.io/xlchart/",
+  "homepage": "https://ritusmoikaushik.github.io/chartsheet/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ritusmoikaushik/xlchart.git"
+    "url": "git+https://github.com/ritusmoikaushik/chartsheet.git"
   },
   "bugs": {
-    "url": "https://github.com/ritusmoikaushik/xlchart/issues"
+    "url": "https://github.com/ritusmoikaushik/chartsheet/issues"
   },
   "author": "Ritusmoi Kaushik",
   "license": "MIT",

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>How to add a chart with SheetJS (xlsx) — charts in the community build</title>
 <meta name="description" content="SheetJS Community cannot write charts; charts are a Pro feature. Here is how to add a native Excel chart to a workbook SheetJS produced, free and MIT licensed.">
-<link rel="canonical" href="https://ritusmoikaushik.github.io/xlchart/sheetjs-chart.html">
+<link rel="canonical" href="https://ritusmoikaushik.github.io/chartsheet/sheetjs-chart.html">
 <meta property="og:title" content="How to add a chart with SheetJS">
 <meta property="og:description" content="SheetJS Community cannot write charts. Here is how to add one anyway.">
 <link rel="stylesheet" href="style.css">
@@ -18,13 +18,13 @@
 <body>
 <header class="site">
   <div class="wrap">
-    <a class="brand" href="./">xlchart</a>
+    <a class="brand" href="./">chartsheet</a>
     <nav>
       <a href="exceljs-chart.html">ExcelJS</a>
       <a href="sheetjs-chart.html">SheetJS</a>
       <a href="charts-disappearing.html">Charts disappearing</a>
       <a href="api.html">API</a>
-      <a href="https://github.com/ritusmoikaushik/xlchart">GitHub</a>
+      <a href="https://github.com/ritusmoikaushik/chartsheet">GitHub</a>
     </nav>
   </div>
 </header>
@@ -40,11 +40,11 @@
     parts that the community build leaves out. MIT licensed.</p>
   </div>
 
-  <div class="install">npm install xlchart</div>
+  <div class="install">npm install chartsheet</div>
 
   <h2>Example</h2>
   <pre><code>const XLSX = require('xlsx')
-const { addChart } = require('xlchart')
+const { addChart } = require('chartsheet')
 const fs = require('fs')
 
 const wb = XLSX.utils.book_new()
@@ -99,7 +99,7 @@ fs.writeFileSync('report.xlsx', buffer)</code></pre>
     and basic formatting.</p>
 
     <h3>Do I need SheetJS at all?</h3>
-    <p>No. <code>xlchart</code> only needs finished <code>.xlsx</code> bytes, from any source.</p>
+    <p>No. <code>chartsheet</code> only needs finished <code>.xlsx</code> bytes, from any source.</p>
 
     <h3>Does it work in the browser?</h3>
     <p>Yes. JSZip is the only dependency and there are no native modules, so it runs wherever SheetJS
@@ -109,7 +109,7 @@ fs.writeFileSync('report.xlsx', buffer)</code></pre>
 
 <footer class="site">
   <div class="wrap">
-    <p>MIT licensed. <a href="https://github.com/ritusmoikaushik/xlchart">Source on GitHub</a>.
+    <p>MIT licensed. <a href="https://github.com/ritusmoikaushik/chartsheet">Source on GitHub</a>.
     Microsoft and Excel are trademarks of Microsoft Corporation; this project is not affiliated with
     or endorsed by Microsoft. SheetJS is a trademark of SheetJS LLC.</p>
   </div>

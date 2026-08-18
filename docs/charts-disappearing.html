@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ExcelJS charts disappearing after read and write — why, and how to keep them</title>
 <meta name="description" content="ExcelJS deletes every chart when it loads an .xlsx and writes it back, with no error. Here is why it happens and how to preserve charts through the round trip.">
-<link rel="canonical" href="https://ritusmoikaushik.github.io/xlchart/charts-disappearing.html">
+<link rel="canonical" href="https://ritusmoikaushik.github.io/chartsheet/charts-disappearing.html">
 <meta property="og:title" content="ExcelJS charts disappearing after read and write">
 <meta property="og:description" content="Why ExcelJS silently deletes charts on a round trip, and how to keep them.">
 <link rel="stylesheet" href="style.css">
@@ -20,13 +20,13 @@
 <body>
 <header class="site">
   <div class="wrap">
-    <a class="brand" href="./">xlchart</a>
+    <a class="brand" href="./">chartsheet</a>
     <nav>
       <a href="exceljs-chart.html">ExcelJS</a>
       <a href="sheetjs-chart.html">SheetJS</a>
       <a href="charts-disappearing.html">Charts disappearing</a>
       <a href="api.html">API</a>
-      <a href="https://github.com/ritusmoikaushik/xlchart">GitHub</a>
+      <a href="https://github.com/ritusmoikaushik/chartsheet">GitHub</a>
     </nav>
   </div>
 </header>
@@ -67,7 +67,7 @@ fs.writeFileSync('out.xlsx', await wb.xlsx.writeBuffer())
   <p>Take a copy of the chart parts before ExcelJS touches the file, then put them back on the
   output:</p>
 
-  <pre><code>const { preserveCharts } = require('xlchart')
+  <pre><code>const { preserveCharts } = require('chartsheet')
 
 const original = fs.readFileSync('template.xlsx')
 
@@ -82,7 +82,7 @@ fs.writeFileSync('out.xlsx', output)      // edit applied, charts intact</code><
   <p>If the edit happens somewhere else — another process, a queue, a different machine — split it
   into the two halves:</p>
 
-  <pre><code>const { captureCharts, restoreCharts } = require('xlchart')
+  <pre><code>const { captureCharts, restoreCharts } = require('chartsheet')
 
 const record = await captureCharts(original)   // plain data, serialisable
 // ... later, elsewhere ...
@@ -101,7 +101,7 @@ const output = await restoreCharts(rewritten, record)</code></pre>
   </ul>
 
   <h2>Checking it worked</h2>
-  <pre><code>const { chartCount, captureCharts, validate } = require('xlchart')
+  <pre><code>const { chartCount, captureCharts, validate } = require('chartsheet')
 
 console.log(chartCount(await captureCharts(output)))   // 3
 console.log(await validate(output))                    // { valid: true, errors: [] }</code></pre>
@@ -129,7 +129,7 @@ console.log(await validate(output))                    // { valid: true, errors:
 
 <footer class="site">
   <div class="wrap">
-    <p>MIT licensed. <a href="https://github.com/ritusmoikaushik/xlchart">Source on GitHub</a>.
+    <p>MIT licensed. <a href="https://github.com/ritusmoikaushik/chartsheet">Source on GitHub</a>.
     Microsoft and Excel are trademarks of Microsoft Corporation; this project is not affiliated with
     or endorsed by Microsoft.</p>
   </div>
