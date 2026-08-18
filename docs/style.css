@@ -1,0 +1,161 @@
+:root {
+  --bg: #fbfbfa;
+  --surface: #ffffff;
+  --ink: #16181d;
+  --ink-soft: #4d525c;
+  --ink-faint: #767c88;
+  --rule: #e3e4e8;
+  --accent: #1d6b4f;
+  --accent-soft: #e8f2ed;
+  --code-bg: #14161a;
+  --code-ink: #e6e8ec;
+  --warn-bg: #fdf3e7;
+  --warn-rule: #d9a441;
+  --measure: 44rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1115;
+    --surface: #14171d;
+    --ink: #e9ebef;
+    --ink-soft: #b3b8c2;
+    --ink-faint: #838a97;
+    --rule: #262a33;
+    --accent: #5fbf95;
+    --accent-soft: #13291f;
+    --code-bg: #0a0c0f;
+    --code-ink: #e6e8ec;
+    --warn-bg: #2a2113;
+    --warn-rule: #a37c2b;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: var(--measure); margin: 0 auto; padding: 0 1.25rem; }
+
+header.site {
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface);
+}
+header.site .wrap {
+  display: flex; align-items: baseline; gap: 1.5rem;
+  padding-top: 1rem; padding-bottom: 1rem;
+  max-width: 60rem;
+}
+header.site a.brand {
+  font-weight: 700; font-size: 1.05rem; letter-spacing: -0.01em;
+  color: var(--ink); text-decoration: none;
+}
+header.site nav { display: flex; gap: 1.1rem; flex-wrap: wrap; }
+header.site nav a {
+  color: var(--ink-soft); text-decoration: none; font-size: 0.92rem;
+}
+header.site nav a:hover { color: var(--accent); }
+
+main { padding: 2.75rem 0 4rem; }
+
+h1 {
+  font-size: clamp(1.75rem, 4vw, 2.4rem);
+  line-height: 1.2; letter-spacing: -0.022em;
+  margin: 0 0 0.75rem;
+}
+h2 {
+  font-size: 1.3rem; letter-spacing: -0.012em;
+  margin: 2.75rem 0 0.75rem; padding-top: 0.4rem;
+}
+h3 { font-size: 1.05rem; margin: 1.9rem 0 0.5rem; }
+
+p, li { color: var(--ink-soft); }
+p { margin: 0 0 1rem; }
+li { margin-bottom: 0.35rem; }
+strong { color: var(--ink); font-weight: 650; }
+
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+
+.lede { font-size: 1.1rem; color: var(--ink-soft); }
+
+.answer {
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  padding: 1rem 1.15rem;
+  border-radius: 0 6px 6px 0;
+  margin: 1.5rem 0;
+}
+.answer p:last-child { margin-bottom: 0; }
+.answer strong { color: var(--ink); }
+
+.note {
+  background: var(--warn-bg);
+  border-left: 3px solid var(--warn-rule);
+  padding: 0.9rem 1.15rem;
+  border-radius: 0 6px 6px 0;
+  margin: 1.5rem 0;
+  font-size: 0.95rem;
+}
+.note p:last-child { margin-bottom: 0; }
+
+pre {
+  background: var(--code-bg);
+  color: var(--code-ink);
+  padding: 1rem 1.15rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  margin: 1.1rem 0;
+}
+code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+:not(pre) > code {
+  background: var(--rule);
+  color: var(--ink);
+  padding: 0.12em 0.38em;
+  border-radius: 4px;
+  font-size: 0.88em;
+}
+pre code { background: none; padding: 0; color: inherit; }
+
+.install {
+  display: inline-block;
+  background: var(--code-bg); color: var(--code-ink);
+  padding: 0.65rem 1rem; border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.95rem; margin: 0.5rem 0 1.5rem;
+}
+
+.scroll { overflow-x: auto; margin: 1.25rem 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.93rem; }
+th, td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--rule); }
+th { color: var(--ink); font-weight: 650; white-space: nowrap; }
+td { color: var(--ink-soft); vertical-align: top; }
+td code { white-space: nowrap; }
+
+.faq h3 { font-size: 1rem; margin-top: 1.6rem; }
+
+footer.site {
+  border-top: 1px solid var(--rule);
+  padding: 1.75rem 0 3rem;
+  font-size: 0.88rem;
+  color: var(--ink-faint);
+}
+footer.site a { color: var(--ink-faint); }
+
+.pill {
+  display: inline-block; font-size: 0.75rem; letter-spacing: 0.02em;
+  background: var(--accent-soft); color: var(--accent);
+  padding: 0.2rem 0.55rem; border-radius: 999px; margin-bottom: 0.9rem;
+  font-weight: 600; text-transform: uppercase;
+}
+
+img, svg { max-width: 100%; height: auto; }

@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>xlchart — Excel charts for JavaScript, with ExcelJS or SheetJS</title>
+<meta name="description" content="Add native Microsoft Excel charts to .xlsx files from JavaScript. Works with ExcelJS and SheetJS, which cannot write charts themselves. Bar, line, pie, doughnut, area, scatter and radar.">
+<link rel="canonical" href="https://ritusmoikaushik.github.io/xlchart/">
+<meta property="og:title" content="xlchart — Excel charts for JavaScript">
+<meta property="og:description" content="Native Excel charts for .xlsx files built with ExcelJS or SheetJS.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="style.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareSourceCode","name":"xlchart",
+"description":"Native Microsoft Excel charts for .xlsx files built with ExcelJS or SheetJS.",
+"programmingLanguage":"JavaScript","runtimePlatform":"Node.js","license":"https://opensource.org/licenses/MIT"}
+</script>
+</head>
+<body>
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="./">xlchart</a>
+    <nav>
+      <a href="exceljs-chart.html">ExcelJS</a>
+      <a href="sheetjs-chart.html">SheetJS</a>
+      <a href="charts-disappearing.html">Charts disappearing</a>
+      <a href="api.html">API</a>
+      <a href="https://github.com/ritusmoikaushik/xlchart">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <span class="pill">MIT licensed</span>
+  <h1>Excel charts for JavaScript</h1>
+  <p class="lede">Add a real, native chart to an <code>.xlsx</code> file from Node.js — one that
+  redraws when the numbers change, not a picture pasted onto a sheet.</p>
+
+  <div class="install">npm install xlchart</div>
+
+  <div class="answer">
+    <p><strong>Short answer.</strong> ExcelJS and SheetJS both build spreadsheets and neither can
+    write a chart. <code>xlchart</code> writes the chart, drawing and relationship parts they leave
+    out, straight into the workbook you already produced. It doesn't replace either library — it
+    finishes the file.</p>
+  </div>
+
+  <h2>Use it</h2>
+  <pre><code>const ExcelJS = require('exceljs')
+const { addChart } = require('xlchart')
+
+const wb = new ExcelJS.Workbook()
+const ws = wb.addWorksheet('Data')
+ws.addRow(['Month', 'Sales', 'Costs'])
+ws.addRow(['Jan', 120, 90])
+ws.addRow(['Feb', 150, 95])
+ws.addRow(['Mar', 180, 110])
+
+let buffer = await wb.xlsx.writeBuffer()        // ExcelJS writes the sheet
+
+buffer = await addChart(buffer, {               // xlchart adds the chart
+  type: 'bar',
+  title: 'Quarterly performance',
+  categories: "'Data'!$A$2:$A$4",
+  series: [
+    { nameRef: "'Data'!$B$1", ref: "'Data'!$B$2:$B$4" },
+    { nameRef: "'Data'!$C$1", ref: "'Data'!$C$2:$C$4" },
+  ],
+  anchor: { col: 4, row: 1 },
+})
+
+fs.writeFileSync('report.xlsx', buffer)</code></pre>
+
+  <p>Open <code>report.xlsx</code> in Excel and the chart is selectable, editable and live. Change a
+  value in column B and it redraws. The same file opens in Google Sheets and LibreOffice.</p>
+
+  <h2>Chart types</h2>
+  <p><code>bar</code> · <code>column</code> · <code>line</code> · <code>pie</code> ·
+  <code>doughnut</code> · <code>area</code> · <code>scatter</code> · <code>radar</code></p>
+  <p>With titles and axis titles, several series, stacking, data labels, series colours, number
+  formats, legend placement, and as many charts on a sheet as you like.</p>
+
+  <h2>It also stops ExcelJS destroying charts</h2>
+  <p>Open a workbook that already has charts, edit a cell, write it back — and ExcelJS deletes every
+  chart, silently. That has been reported three times since 2020 and is still open.
+  <a href="charts-disappearing.html">Here is what happens and how to stop it</a>.</p>
+
+  <pre><code>const { preserveCharts } = require('xlchart')
+
+const original = fs.readFileSync('template.xlsx')  // has charts
+// ... ExcelJS loads it, edits it, writes `rewritten` — charts gone ...
+const output = await preserveCharts(original, rewritten)   // and back again</code></pre>
+
+  <h2>Tell me why Excel won't open my file</h2>
+  <p>Excel reports a damaged workbook as <em>"we found a problem with some content"</em> and never
+  says which part. The built-in validator does:</p>
+
+  <pre><code>const { validate } = require('xlchart')
+
+const { valid, errors } = await validate(buffer)
+// [ 'xl/charts/chart1.xml: no &lt;Override&gt; content type — a chart part needs
+//    one declared explicitly; the generic xml Default does not satisfy Excel' ]</code></pre>
+
+  <p>It works on any <code>.xlsx</code>, not only files this library touched. Unresolved
+  relationships, missing content-type overrides, duplicate shape ids, drawing parts that are
+  related but never referenced, <code>&lt;drawing&gt;</code> out of schema order — the defects that
+  produce that dialog.</p>
+
+  <h2>Why it exists</h2>
+  <p>Adding a chart to an <code>.xlsx</code> means writing a chart part, a drawing part, two sets of
+  relationships and content-type overrides, and getting any of it slightly wrong yields a file Excel
+  refuses to open with no useful error. The most-upvoted feature request on ExcelJS asked for chart
+  support in <strong>2016</strong>. It is still open.</p>
+
+  <h2>Questions</h2>
+  <div class="faq">
+    <h3>Does it replace ExcelJS or SheetJS?</h3>
+    <p>No. You build the workbook exactly as you do now and hand the bytes to <code>addChart</code>.
+    It reads and rewrites the file, so it works with any library that emits a valid
+    <code>.xlsx</code>.</p>
+
+    <h3>Is the chart an image?</h3>
+    <p>No. It is a native Excel chart bound to cell ranges. Edit the cells and it updates.</p>
+
+    <h3>Does it work in the browser?</h3>
+    <p>Yes. The only dependency is JSZip, and everything is plain string and zip manipulation with no
+    native modules.</p>
+
+    <h3>Which Excel versions?</h3>
+    <p>The output uses the standard OOXML chart parts read by Excel 2007 onward, and by Google
+    Sheets, LibreOffice and Numbers.</p>
+  </div>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <p>MIT licensed. <a href="https://github.com/ritusmoikaushik/xlchart">Source on GitHub</a>.
+    Microsoft and Excel are trademarks of Microsoft Corporation; this project is not affiliated with
+    or endorsed by Microsoft.</p>
+  </div>
+</footer>
+</body>
+</html>

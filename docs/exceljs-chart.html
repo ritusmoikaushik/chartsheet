@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to add a chart in ExcelJS — bar, line and pie charts in .xlsx</title>
+<meta name="description" content="ExcelJS cannot create charts. Here is how to add a native bar, line or pie chart to a workbook ExcelJS produced, in a few lines of Node.js.">
+<link rel="canonical" href="https://ritusmoikaushik.github.io/xlchart/exceljs-chart.html">
+<meta property="og:title" content="How to add a chart in ExcelJS">
+<meta property="og:description" content="ExcelJS cannot create charts. Here is how to add one anyway.">
+<link rel="stylesheet" href="style.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"Can ExcelJS create charts?",
+"acceptedAnswer":{"@type":"Answer","text":"No. ExcelJS has no API for charts and never has. The feature request has been open since 2016. You can add a native chart to a workbook ExcelJS produced by writing the chart parts separately."}},
+{"@type":"Question","name":"Is the chart a real Excel chart or an image?",
+"acceptedAnswer":{"@type":"Answer","text":"A real, native Excel chart bound to cell ranges. Editing the cells updates the chart."}}]}
+</script>
+</head>
+<body>
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="./">xlchart</a>
+    <nav>
+      <a href="exceljs-chart.html">ExcelJS</a>
+      <a href="sheetjs-chart.html">SheetJS</a>
+      <a href="charts-disappearing.html">Charts disappearing</a>
+      <a href="api.html">API</a>
+      <a href="https://github.com/ritusmoikaushik/xlchart">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>How to add a chart in ExcelJS</h1>
+  <p class="lede">ExcelJS builds the sheet. It cannot draw the chart. Here is how to get one into the
+  file anyway.</p>
+
+  <div class="answer">
+    <p><strong>Short answer.</strong> ExcelJS has no chart API and never has — the request has been
+    open since 2016. Write the workbook as usual, then pass the buffer through
+    <code>addChart</code>, which writes the chart parts ExcelJS omits.</p>
+  </div>
+
+  <div class="install">npm install xlchart</div>
+
+  <h2>A bar chart</h2>
+  <pre><code>const ExcelJS = require('exceljs')
+const { addChart } = require('xlchart')
+const fs = require('fs')
+
+const wb = new ExcelJS.Workbook()
+const ws = wb.addWorksheet('Data')
+ws.addRow(['Month', 'Sales', 'Costs'])
+ws.addRow(['Jan', 120, 90])
+ws.addRow(['Feb', 150, 95])
+ws.addRow(['Mar', 180, 110])
+ws.addRow(['Apr', 140, 105])
+ws.getRow(1).font = { bold: true }
+
+let buffer = await wb.xlsx.writeBuffer()
+
+buffer = await addChart(buffer, {
+  type: 'bar',
+  title: 'Quarterly performance',
+  xTitle: 'Month',
+  yTitle: 'INR',
+  categories: "'Data'!$A$2:$A$5",
+  series: [
+    { nameRef: "'Data'!$B$1", ref: "'Data'!$B$2:$B$5" },
+    { nameRef: "'Data'!$C$1", ref: "'Data'!$C$2:$C$5" },
+  ],
+  anchor: { col: 4, row: 1 },
+})
+
+fs.writeFileSync('report.xlsx', buffer)</code></pre>
+
+  <div class="note">
+    <p>Cell references are ordinary Excel syntax and should be absolute:
+    <code>'Sheet name'!$B$2:$B$10</code>. Quote the sheet name whenever it contains a space.</p>
+  </div>
+
+  <h2>A line chart</h2>
+  <pre><code>buffer = await addChart(buffer, {
+  type: 'line',
+  title: 'Trend',
+  categories: "'Data'!$A$2:$A$5",
+  series: [{ nameRef: "'Data'!$B$1", ref: "'Data'!$B$2:$B$5" }],
+  anchor: { col: 4, row: 20 },
+})</code></pre>
+
+  <h2>A pie chart</h2>
+  <pre><code>buffer = await addChart(buffer, {
+  type: 'pie',
+  title: 'Share of costs',
+  legend: 'b',
+  dataLabels: true,
+  categories: "'Data'!$A$2:$A$5",
+  series: [{ ref: "'Data'!$C$2:$C$5" }],
+  anchor: { col: 13, row: 1 },
+})</code></pre>
+
+  <h2>Several charts at once</h2>
+  <pre><code>const { addCharts } = require('xlchart')
+
+buffer = await addCharts(buffer, [barSpec, lineSpec, pieSpec])</code></pre>
+
+  <p>A worksheet holds exactly one drawing part and every chart on it is an anchor inside that part.
+  Getting this wrong is the usual reason a hand-built file opens with only the first chart, or not at
+  all. It is handled for you.</p>
+
+  <h2>Putting a chart on a specific sheet</h2>
+  <pre><code>await addChart(buffer, { sheet: 'Summary', /* ... */ })</code></pre>
+  <p>Without <code>sheet</code>, the chart goes on the first worksheet. An unknown name throws rather
+  than silently placing the chart somewhere unexpected.</p>
+
+  <h2>Styling</h2>
+  <div class="scroll">
+  <table>
+    <tr><th>Option</th><th>Effect</th></tr>
+    <tr><td><code>stacked: true</code></td><td>Stack the series</td></tr>
+    <tr><td><code>horizontal: true</code></td><td>Horizontal bars</td></tr>
+    <tr><td><code>dataLabels: true</code></td><td>Print values on the chart</td></tr>
+    <tr><td><code>legend: 'b'</code></td><td>Legend position: <code>r l t b</code>, or <code>false</code></td></tr>
+    <tr><td><code>numberFormat: '#,##0.00'</code></td><td>Value-axis number format</td></tr>
+    <tr><td><code>gridlines: false</code></td><td>Remove value-axis gridlines</td></tr>
+    <tr><td><code>series[].colour</code></td><td>Series colour, e.g. <code>'#3366CC'</code></td></tr>
+    <tr><td><code>width</code>, <code>height</code></td><td>Size in pixels, default 600 × 340</td></tr>
+  </table>
+  </div>
+
+  <h2>If Excel refuses to open the result</h2>
+  <p>Excel says only <em>"we found a problem with some content"</em>. Ask the validator what is
+  actually wrong:</p>
+  <pre><code>const { validate } = require('xlchart')
+console.log(await validate(buffer))</code></pre>
+
+  <h2>Questions</h2>
+  <div class="faq">
+    <h3>Can ExcelJS create charts natively?</h3>
+    <p>No. There is no chart API. The feature request opened in June 2016 is the most-upvoted issue
+    on the project and remains open; the last commit was January 2024.</p>
+
+    <h3>Is this an image of a chart?</h3>
+    <p>No. It is a native chart bound to cell ranges — click it in Excel and you can edit it, change
+    its type, or repoint its data.</p>
+
+    <h3>Does it work with <code>ExcelJS.stream.xlsx.WorkbookWriter</code>?</h3>
+    <p>Yes, as long as you end up with the finished bytes. Charts are added to a completed workbook
+    buffer, so anything that produces valid <code>.xlsx</code> output works.</p>
+
+    <h3>Will my chart survive if the file is opened and saved again by ExcelJS?</h3>
+    <p>Not by itself — ExcelJS drops charts on a round trip.
+    <a href="charts-disappearing.html">Here is how to keep them</a>.</p>
+  </div>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <p>MIT licensed. <a href="https://github.com/ritusmoikaushik/xlchart">Source on GitHub</a>.
+    Microsoft and Excel are trademarks of Microsoft Corporation; this project is not affiliated with
+    or endorsed by Microsoft.</p>
+  </div>
+</footer>
+</body>
+</html>

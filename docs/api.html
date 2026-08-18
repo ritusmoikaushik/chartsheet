@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>xlchart API reference — addChart, preserveCharts, validate</title>
+<meta name="description" content="Full API reference for xlchart: addChart, addCharts, captureCharts, restoreCharts, preserveCharts and validate. Every chart type and option.">
+<link rel="canonical" href="https://ritusmoikaushik.github.io/xlchart/api.html">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="./">xlchart</a>
+    <nav>
+      <a href="exceljs-chart.html">ExcelJS</a>
+      <a href="sheetjs-chart.html">SheetJS</a>
+      <a href="charts-disappearing.html">Charts disappearing</a>
+      <a href="api.html">API</a>
+      <a href="https://github.com/ritusmoikaushik/xlchart">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>API reference</h1>
+  <p class="lede">Six functions. Every one takes and returns <code>.xlsx</code> bytes, so anything
+  that produces a valid workbook can be used with it.</p>
+
+  <h2>addChart(workbook, spec)</h2>
+  <p>Adds one chart. <code>workbook</code> is a <code>Buffer</code>, <code>Uint8Array</code> or
+  <code>ArrayBuffer</code>. Returns a <code>Promise&lt;Buffer&gt;</code>.</p>
+  <pre><code>const buffer = await addChart(input, {
+  type: 'bar',
+  title: 'Quarterly performance',
+  categories: "'Data'!$A$2:$A$5",
+  series: [{ nameRef: "'Data'!$B$1", ref: "'Data'!$B$2:$B$5" }],
+})</code></pre>
+
+  <h3>Spec</h3>
+  <div class="scroll">
+  <table>
+    <tr><th>Key</th><th>Type</th><th>Meaning</th></tr>
+    <tr><td><code>type</code></td><td>string</td><td><code>bar</code> <code>column</code> <code>line</code> <code>pie</code> <code>doughnut</code> <code>area</code> <code>scatter</code> <code>radar</code>. Default <code>bar</code></td></tr>
+    <tr><td><code>series</code></td><td>array</td><td>Required, at least one. See below</td></tr>
+    <tr><td><code>categories</code></td><td>string</td><td>Cell range for category labels</td></tr>
+    <tr><td><code>title</code></td><td>string</td><td>Chart title. Omit for none</td></tr>
+    <tr><td><code>xTitle</code> / <code>yTitle</code></td><td>string</td><td>Axis titles</td></tr>
+    <tr><td><code>sheet</code></td><td>string</td><td>Worksheet name. Default: the first sheet</td></tr>
+    <tr><td><code>anchor</code></td><td>object</td><td><code>{ col, row }</code>, zero-based top-left cell. Default <code>{ col: 5, row: 1 }</code></td></tr>
+    <tr><td><code>width</code> / <code>height</code></td><td>number</td><td>Pixels. Default 600 × 340</td></tr>
+    <tr><td><code>stacked</code></td><td>boolean</td><td>Stack the series</td></tr>
+    <tr><td><code>horizontal</code></td><td>boolean</td><td>Horizontal bars (<code>bar</code> only)</td></tr>
+    <tr><td><code>dataLabels</code></td><td>boolean</td><td>Print values on the chart</td></tr>
+    <tr><td><code>legend</code></td><td>string&nbsp;|&nbsp;false</td><td><code>r</code> <code>l</code> <code>t</code> <code>b</code>, or <code>false</code> to hide. Default <code>r</code></td></tr>
+    <tr><td><code>numberFormat</code></td><td>string</td><td>Value-axis format, e.g. <code>'#,##0.00'</code></td></tr>
+    <tr><td><code>gridlines</code></td><td>boolean</td><td><code>false</code> removes value-axis gridlines</td></tr>
+    <tr><td><code>gapWidth</code></td><td>number</td><td>Bar gap percentage. Default 150</td></tr>
+    <tr><td><code>name</code></td><td>string</td><td>Shape name shown in Excel's selection pane</td></tr>
+  </table>
+  </div>
+
+  <h3>Series</h3>
+  <div class="scroll">
+  <table>
+    <tr><th>Key</th><th>Meaning</th></tr>
+    <tr><td><code>ref</code></td><td><strong>Required.</strong> Cell range holding the values</td></tr>
+    <tr><td><code>nameRef</code></td><td>Cell holding the series name, usually the header</td></tr>
+    <tr><td><code>name</code></td><td>Literal series name, if it is not in a cell</td></tr>
+    <tr><td><code>colour</code> / <code>color</code></td><td>Series colour, e.g. <code>'#3366CC'</code></td></tr>
+    <tr><td><code>xRef</code></td><td><code>scatter</code> only: the x values for this series</td></tr>
+  </table>
+  </div>
+
+  <h2>addCharts(workbook, specs)</h2>
+  <p>Adds several charts in one call. Equivalent to calling <code>addChart</code> repeatedly.</p>
+  <pre><code>const buffer = await addCharts(input, [barSpec, lineSpec, pieSpec])</code></pre>
+
+  <h2>captureCharts(workbook)</h2>
+  <p>Reads every chart on every sheet, following each chart's own relationships so colour and style
+  parts come with it. Returns a plain serialisable record.</p>
+
+  <h2>restoreCharts(workbook, record)</h2>
+  <p>Writes captured charts back onto a workbook, matching sheets by <strong>name</strong>. Sheets
+  that were renamed, removed, or already carry a drawing are skipped rather than guessed at.</p>
+
+  <h2>preserveCharts(original, rewritten)</h2>
+  <p>Convenience wrapper for the pair above — carry the charts from <code>original</code> onto
+  <code>rewritten</code>. <a href="charts-disappearing.html">Why you need this</a>.</p>
+
+  <h2>validate(workbook)</h2>
+  <p>Checks the package for the defects that make Excel refuse a file. Returns
+  <code>{ valid, errors, warnings }</code>. Works on any <code>.xlsx</code>.</p>
+  <pre><code>const { valid, errors } = await validate(buffer)</code></pre>
+  <p>It reports:</p>
+  <ul>
+    <li>relationships pointing at parts that are not in the package</li>
+    <li>missing or wrong content-type overrides — including the case the generic
+    <code>xml</code> default hides</li>
+    <li>more than one <code>&lt;drawing&gt;</code> on a worksheet, or one placed before
+    <code>&lt;/sheetData&gt;</code></li>
+    <li>drawing parts that are related to a sheet but never referenced, whose charts silently do not
+    render</li>
+    <li>duplicate <code>cNvPr</code> shape ids within a drawing</li>
+    <li>chart parts with no series, or with unprefixed elements</li>
+  </ul>
+
+  <h2>chartCount(record)</h2>
+  <p>Number of charts in a record from <code>captureCharts</code>. Useful in tests.</p>
+
+  <h2>Errors</h2>
+  <p>Bad input throws rather than producing a file Excel will reject later:</p>
+  <ul>
+    <li><code>chart spec needs at least one entry in series</code></li>
+    <li><code>unknown chart type "…"</code></li>
+    <li><code>series[0] needs a ref, e.g. "'Sheet1'!$B$2:$B$10"</code></li>
+    <li><code>no worksheet named "…" (found: …)</code></li>
+    <li><code>a scatter chart needs categories or an xRef on every series</code></li>
+  </ul>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <p>MIT licensed. <a href="https://github.com/ritusmoikaushik/xlchart">Source on GitHub</a>.
+    Microsoft and Excel are trademarks of Microsoft Corporation; this project is not affiliated with
+    or endorsed by Microsoft.</p>
+  </div>
+</footer>
+</body>
+</html>

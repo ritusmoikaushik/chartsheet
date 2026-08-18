@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://ritusmoikaushik.github.io/xlchart/sitemap.xml

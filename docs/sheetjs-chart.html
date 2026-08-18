@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to add a chart with SheetJS (xlsx) — charts in the community build</title>
+<meta name="description" content="SheetJS Community cannot write charts; charts are a Pro feature. Here is how to add a native Excel chart to a workbook SheetJS produced, free and MIT licensed.">
+<link rel="canonical" href="https://ritusmoikaushik.github.io/xlchart/sheetjs-chart.html">
+<meta property="og:title" content="How to add a chart with SheetJS">
+<meta property="og:description" content="SheetJS Community cannot write charts. Here is how to add one anyway.">
+<link rel="stylesheet" href="style.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"Can SheetJS Community write charts?",
+"acceptedAnswer":{"@type":"Answer","text":"No. The community build does not write charts; chart support is part of SheetJS Pro. You can add a native chart to a workbook the community build produced by writing the chart parts separately."}}]}
+</script>
+</head>
+<body>
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="./">xlchart</a>
+    <nav>
+      <a href="exceljs-chart.html">ExcelJS</a>
+      <a href="sheetjs-chart.html">SheetJS</a>
+      <a href="charts-disappearing.html">Charts disappearing</a>
+      <a href="api.html">API</a>
+      <a href="https://github.com/ritusmoikaushik/xlchart">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>How to add a chart with SheetJS</h1>
+  <p class="lede">The community build of SheetJS writes sheets, not charts. Charts sit in the paid
+  tier. Here is how to get one into the file without it.</p>
+
+  <div class="answer">
+    <p><strong>Short answer.</strong> Build the workbook with <code>XLSX.write</code> as usual, then
+    pass the buffer through <code>addChart</code>. It writes the chart, drawing and relationship
+    parts that the community build leaves out. MIT licensed.</p>
+  </div>
+
+  <div class="install">npm install xlchart</div>
+
+  <h2>Example</h2>
+  <pre><code>const XLSX = require('xlsx')
+const { addChart } = require('xlchart')
+const fs = require('fs')
+
+const wb = XLSX.utils.book_new()
+const ws = XLSX.utils.aoa_to_sheet([
+  ['Month', 'Sales', 'Costs'],
+  ['Jan', 120, 90],
+  ['Feb', 150, 95],
+  ['Mar', 180, 110],
+  ['Apr', 140, 105],
+])
+XLSX.utils.book_append_sheet(wb, ws, 'Data')
+
+let buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
+
+buffer = await addChart(buffer, {
+  type: 'bar',
+  title: 'Quarterly performance',
+  categories: "'Data'!$A$2:$A$5",
+  series: [
+    { nameRef: "'Data'!$B$1", ref: "'Data'!$B$2:$B$5" },
+    { nameRef: "'Data'!$C$1", ref: "'Data'!$C$2:$C$5" },
+  ],
+  anchor: { col: 4, row: 1 },
+})
+
+fs.writeFileSync('report.xlsx', buffer)</code></pre>
+
+  <p>Nothing about this is SheetJS-specific. Charts are added to finished <code>.xlsx</code> bytes,
+  so the same call works on a workbook from ExcelJS, from SheetJS, or from anything else that emits
+  a valid file.</p>
+
+  <div class="note">
+    <p>Use <code>{ type: 'buffer' }</code> rather than <code>'binary'</code> or
+    <code>'base64'</code>, or convert first — <code>addChart</code> takes bytes, not a string.</p>
+  </div>
+
+  <h2>Chart types and options</h2>
+  <p>Bar, column, line, pie, doughnut, area, scatter and radar, with titles, axis titles, multiple
+  series, stacking, data labels, series colours, number formats and legend placement. The
+  <a href="api.html">API reference</a> lists everything.</p>
+
+  <h2>Charts on a round trip</h2>
+  <p>Reading an <code>.xlsx</code> with SheetJS and writing it back drops any charts it contained,
+  because charts are not part of what the community build models.
+  <a href="charts-disappearing.html">Capture and restore</a> handles that, the same way it does for
+  ExcelJS.</p>
+
+  <h2>Questions</h2>
+  <div class="faq">
+    <h3>Does SheetJS Community support charts?</h3>
+    <p>No. Charts are part of SheetJS Pro. The community build reads and writes cell data, formulas
+    and basic formatting.</p>
+
+    <h3>Do I need SheetJS at all?</h3>
+    <p>No. <code>xlchart</code> only needs finished <code>.xlsx</code> bytes, from any source.</p>
+
+    <h3>Does it work in the browser?</h3>
+    <p>Yes. JSZip is the only dependency and there are no native modules, so it runs wherever SheetJS
+    does.</p>
+  </div>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <p>MIT licensed. <a href="https://github.com/ritusmoikaushik/xlchart">Source on GitHub</a>.
+    Microsoft and Excel are trademarks of Microsoft Corporation; this project is not affiliated with
+    or endorsed by Microsoft. SheetJS is a trademark of SheetJS LLC.</p>
+  </div>
+</footer>
+</body>
+</html>
