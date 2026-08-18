@@ -11,14 +11,14 @@ const fs = require('fs')
 const path = require('path')
 const https = require('https')
 
-const PACKAGE = process.env.TRACK_PACKAGE || 'excel-chart'
-const REPO = process.env.TRACK_REPO || 'ritusmoikaushik/excel-chart'
+const PACKAGE = process.env.TRACK_PACKAGE || 'xlchart'
+const REPO = process.env.TRACK_REPO || 'ritusmoikaushik/xlchart'
 // Benchmarks: the stale incumbent, and the base libraries this plugs into.
 const COMPARE = ['xlsx-chart', 'exceljs']
 const CSV = path.join(__dirname, '..', 'metrics.csv')
 
 const get = url => new Promise(resolve => {
-  https.get(url, { headers: { 'user-agent': 'excel-chart-tracker' } }, res => {
+  https.get(url, { headers: { 'user-agent': 'xlchart-tracker' } }, res => {
     let body = ''
     res.on('data', c => { body += c })
     res.on('end', () => {

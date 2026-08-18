@@ -1,4 +1,4 @@
-# excel-chart
+# xlchart
 
 Native Excel charts for `.xlsx` files built with **ExcelJS** or **SheetJS** — the chart support
 neither library has.
@@ -11,14 +11,14 @@ This adds the chart. A real, native Excel chart — click it, change a number, i
 image.
 
 ```bash
-npm install excel-chart
+npm install xlchart
 ```
 
 ## Use
 
 ```js
 const ExcelJS = require('exceljs')
-const { addChart } = require('excel-chart')
+const { addChart } = require('xlchart')
 
 const wb = new ExcelJS.Workbook()
 const ws = wb.addWorksheet('Data')
@@ -76,7 +76,7 @@ const withChart = await addChart(buffer, spec)
 Several charts at once:
 
 ```js
-const { addCharts } = require('excel-chart')
+const { addCharts } = require('xlchart')
 buffer = await addCharts(buffer, [barSpec, lineSpec, pieSpec])
 ```
 
@@ -86,7 +86,7 @@ Excel reports a damaged file only as *"we found a problem with some content"*, w
 tells you what is actually wrong:
 
 ```js
-const { validate } = require('excel-chart')
+const { validate } = require('xlchart')
 
 const { valid, errors, warnings } = await validate(buffer)
 // errors: [ 'xl/charts/chart1.xml: no <Override> content type — ...' ]
@@ -118,7 +118,7 @@ back **silently deletes every chart**. No error, no warning. Reported on ExcelJS
 2023; still open.
 
 ```js
-const { preserveCharts } = require('excel-chart')
+const { preserveCharts } = require('xlchart')
 
 const original = fs.readFileSync('template.xlsx')   // has charts
 

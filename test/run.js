@@ -57,7 +57,7 @@ async function assertValid (buffer, label) {
 
 async function main () {
   fs.mkdirSync(OUT, { recursive: true })
-  console.log('excel-chart tests\n')
+  console.log('xlchart tests\n')
 
   for (const type of ['bar', 'line', 'pie', 'doughnut', 'area', 'radar']) {
     await test(`${type} chart produces a valid package`, async () => {

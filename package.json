@@ -1,7 +1,7 @@
 {
-  "name": "excel-chart",
+  "name": "xlchart",
   "version": "0.1.0",
-  "description": "Native Excel charts for xlsx files built with ExcelJS or SheetJS — the chart support neither library has.",
+  "description": "Native charts for Microsoft Excel .xlsx files built with ExcelJS or SheetJS — the chart support neither library has.",
   "keywords": [
     "excel",
     "xlsx",
