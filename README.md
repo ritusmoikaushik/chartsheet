@@ -113,3 +113,33 @@ open, with no useful error. The most-upvoted feature request on ExcelJS asked fo
 ## Licence
 
 MIT
+
+## Keeping charts through a read-write cycle
+
+ExcelJS does not model chart parts, so opening a workbook that has charts, editing it and writing it
+back **silently deletes every chart**. No error, no warning. Reported on ExcelJS in 2020, 2021 and
+2023; still open.
+
+```js
+const { preserveCharts } = require('excel-chart')
+
+const original = fs.readFileSync('template.xlsx')   // has charts
+
+const wb = new ExcelJS.Workbook()
+await wb.xlsx.load(original)
+wb.getWorksheet('Data').getCell('B2').value = 999
+const rewritten = await wb.xlsx.writeBuffer()       // charts are gone here
+
+const output = await preserveCharts(original, rewritten)   // and back again
+```
+
+Or in two steps, if the edit happens elsewhere:
+
+```js
+const record = await captureCharts(original)
+// ...
+const output = await restoreCharts(rewritten, record)
+```
+
+Sheets are matched by **name**, so charts land back where they belong even if sheet order changed.
+A sheet that was renamed or removed is skipped rather than guessed at.

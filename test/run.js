@@ -7,7 +7,7 @@ const fs = require('fs')
 const path = require('path')
 const ExcelJS = require('exceljs')
 const JSZip = require('jszip')
-const { addChart, addCharts, validate } = require('../src')
+const { addChart, addCharts, validate, captureCharts, restoreCharts, chartCount } = require('../src')
 
 const OUT = path.join(__dirname, 'output')
 let passed = 0
@@ -187,6 +187,37 @@ async function main () {
     const out = await addChart(base, barSpec({ title: 'From SheetJS' }))
     await assertValid(out, 'sheetjs')
     fs.writeFileSync(path.join(OUT, 'sheetjs.xlsx'), out)
+  })
+
+  await test('ExcelJS destroys charts on read-write, and we put them back', async () => {
+    const original = await addChart(await baseWorkbook(), barSpec({ title: 'Template' }))
+    assert.strictEqual(chartCount(await captureCharts(original)), 1, 'template should have a chart')
+
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(original)
+    wb.getWorksheet('Data').getCell('B2').value = 999
+    const rewritten = Buffer.from(await wb.xlsx.writeBuffer())
+    assert.strictEqual(chartCount(await captureCharts(rewritten)), 0,
+      'ExcelJS is expected to drop the chart — if this fails, ExcelJS fixed the bug')
+
+    const restored = await restoreCharts(rewritten, await captureCharts(original))
+    assert.strictEqual(chartCount(await captureCharts(restored)), 1, 'chart should be back')
+    await assertValid(restored, 'restored')
+
+    const check = new ExcelJS.Workbook()
+    await check.xlsx.load(restored)
+    assert.strictEqual(check.getWorksheet('Data').getCell('B2').value, 999,
+      'the edit must survive alongside the chart')
+    fs.writeFileSync(path.join(OUT, 'preserved.xlsx'), restored)
+  })
+
+  await test('restoring onto a workbook whose sheet was renamed skips safely', async () => {
+    const original = await addChart(await baseWorkbook(), barSpec())
+    const record = await captureCharts(original)
+    const other = await baseWorkbook(['Renamed'])
+    const out = await restoreCharts(other, record)
+    await assertValid(out, 'renamed sheet')
+    assert.strictEqual(chartCount(await captureCharts(out)), 0, 'nothing to restore onto')
   })
 
   await test('a workbook with no charts is still valid', async () => {

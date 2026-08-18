@@ -8,6 +8,7 @@ const {
 } = require('./package')
 const { chartXml, validateSpec } = require('./chart-xml')
 const { validate } = require('./validate')
+const preserve = require('./preserve')
 
 const EMU_PER_PIXEL = 9525
 
@@ -84,4 +85,12 @@ async function addCharts (workbook, specs) {
   return out
 }
 
-module.exports = { addChart, addCharts, validate }
+module.exports = {
+  addChart,
+  addCharts,
+  validate,
+  captureCharts: preserve.captureCharts,
+  restoreCharts: preserve.restoreCharts,
+  preserveCharts: preserve.preserveCharts,
+  chartCount: preserve.chartCount,
+}
