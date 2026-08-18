@@ -110,9 +110,6 @@ open, with no useful error. The most-upvoted feature request on ExcelJS asked fo
   which this handles for you
 - Output opens in Excel, Google Sheets and LibreOffice
 
-## Licence
-
-MIT
 
 ## Keeping charts through a read-write cycle
 
@@ -143,3 +140,7 @@ const output = await restoreCharts(rewritten, record)
 
 Sheets are matched by **name**, so charts land back where they belong even if sheet order changed.
 A sheet that was renamed or removed is skipped rather than guessed at.
+
+## Licence
+
+MIT
