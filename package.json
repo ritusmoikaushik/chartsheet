@@ -1,17 +1,27 @@
 {
   "name": "chartsheet",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Native charts for Microsoft Excel .xlsx files built with ExcelJS or SheetJS — the chart support neither library has.",
   "keywords": [
     "excel",
-    "xlsx",
-    "chart",
+    "excel-chart",
+    "excel-charts",
     "exceljs",
+    "exceljs-chart",
     "sheetjs",
-    "ooxml",
-    "spreadsheet",
+    "xlsx",
+    "xlsx-chart",
+    "xlsx-charts",
+    "chart",
+    "charts",
     "graph",
-    "xlsx-chart"
+    "spreadsheet",
+    "ooxml",
+    "excel chart javascript",
+    "add chart to excel",
+    "chart support",
+    "xlsx writer",
+    "openxml"
   ],
   "homepage": "https://ritusmoikaushik.github.io/chartsheet/",
   "repository": {
