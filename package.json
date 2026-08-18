@@ -13,6 +13,15 @@
     "graph",
     "xlsx-chart"
   ],
+  "homepage": "https://ritusmoikaushik.github.io/xlchart/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ritusmoikaushik/xlchart.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ritusmoikaushik/xlchart/issues"
+  },
+  "author": "Ritusmoi Kaushik",
   "license": "MIT",
   "main": "src/index.js",
   "files": [
