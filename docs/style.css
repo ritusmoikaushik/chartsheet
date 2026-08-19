@@ -245,3 +245,12 @@ figcaption {
   color: var(--ink-faint);
   max-width: 46rem;
 }
+
+/* screenshots are raster: never upscale them past their own pixels or they go soft */
+figure.shot img {
+  width: auto;
+  max-width: 100%;
+  margin: 0 auto;
+}
+figure.shot { text-align: center; }
+figure.shot figcaption { text-align: left; margin-left: auto; margin-right: auto; }

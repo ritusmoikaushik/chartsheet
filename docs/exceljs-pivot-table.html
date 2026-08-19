@@ -9,6 +9,13 @@
 <link rel="canonical" href="https://ritusmoikaushik.github.io/chartsheet/exceljs-pivot-table.html">
 <meta property="og:title" content="How to add a pivot table in ExcelJS">
 <meta property="og:description" content="ExcelJS has no pivot table API. Here is how to add one anyway.">
+<meta property="og:image" content="https://ritusmoikaushik.github.io/chartsheet/img/excel-pivot-screenshot.png">
+<meta property="og:image:width" content="465">
+<meta property="og:image:height" content="218">
+<meta property="og:image:alt" content="An Excel pivot table built by chartsheet, with regions down the side and products across the top.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://ritusmoikaushik.github.io/chartsheet/exceljs-pivot-table.html">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <meta name="theme-color" content="#1d6b4f">
 <link rel="stylesheet" href="style.css">
@@ -93,6 +100,13 @@ main()</code></pre>
   down the side, products across the top, grand totals on both. Click it and the field list appears,
   same as one built by hand.</p>
 
+  <figure class="shot">
+    <img src="img/excel-pivot-screenshot.png" width="465" height="218" loading="lazy"
+         alt="An Excel pivot table with regions down the side, products across the top, sums in each cell and grand totals on both axes. The Region and Product field buttons are visible.">
+    <figcaption>A pivot table written by <code>addPivotTable</code>, open in Excel. Note the field
+    buttons on Region and Product — those only appear on a real pivot table. Excel computed every
+    one of those totals itself from the cache.</figcaption>
+  </figure>
   <h2>Options</h2>
   <table>
     <tr><th>Option</th><th>Meaning</th></tr>
