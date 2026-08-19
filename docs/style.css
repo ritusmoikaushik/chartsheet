@@ -213,3 +213,35 @@ footer.site .wrap { padding-top: 1.5rem; padding-bottom: 1.5rem; }
   main.wrap { padding: 2rem 1.15rem 3.5rem; }
   header.site .wrap { flex-direction: column; gap: 0.6rem; }
 }
+
+/* figures — the SVGs read these, so they follow the theme */
+:root {
+  --fig-surface: #ffffff; --fig-rule: #e3e4e8; --fig-ink: #16181d;
+  --fig-soft: #4d525c; --fig-head: #f1f2f4;
+  --fig-accent: #1d6b4f; --fig-accent2: #8bbfa8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --fig-surface: #14171d; --fig-rule: #2b303a; --fig-ink: #e9ebef;
+    --fig-soft: #a2a9b5; --fig-head: #1b1f27;
+    --fig-accent: #5fbf95; --fig-accent2: #2f6f57;
+  }
+}
+figure {
+  margin: 1.75rem 0;
+  padding: 0;
+}
+figure img, figure svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--surface);
+}
+figcaption {
+  margin-top: 0.6rem;
+  font-size: 0.88rem;
+  color: var(--ink-faint);
+  max-width: 46rem;
+}

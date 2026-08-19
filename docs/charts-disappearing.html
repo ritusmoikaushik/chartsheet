@@ -48,6 +48,12 @@
     You have to lift them off the original and put them back afterwards.</p>
   </div>
 
+  <figure>
+    <img src="img/round-trip.svg" width="720" height="210"
+         alt="Three workbooks in sequence: a template with a chart, the same file after ExcelJS rewrites it with the chart gone, and the file again with the chart restored.">
+    <figcaption>Load, edit, write back — and the chart is not in the output. Nothing errors.
+    <code>preserveCharts</code> carries it across.</figcaption>
+  </figure>
   <h2>Reproducing it</h2>
   <pre><code>const fs = require('fs')
 const ExcelJS = require('exceljs')

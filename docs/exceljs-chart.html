@@ -139,6 +139,13 @@ buffer = await addCharts(buffer, [barSpec, lineSpec, pieSpec])</code></pre>
   </table>
   </div>
 
+  <figure>
+    <img src="img/anatomy.svg" width="720" height="268"
+         alt="Diagram of an xlsx package: worksheet, content types and workbook parts on the left, linked to drawing, chart and pivot table parts on the right.">
+    <figcaption>Why this is fiddly. A chart is not one file — it is a chart part, a drawing part,
+    relationships from the sheet and from the drawing, and content-type entries for both. Get any one
+    of them wrong and Excel refuses the file without saying which.</figcaption>
+  </figure>
   <h2>If Excel refuses to open the result</h2>
   <p>Excel says only <em>"we found a problem with some content"</em>. Ask the validator what is
   actually wrong:</p>
