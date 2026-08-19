@@ -1,47 +1,65 @@
 # chartsheet
 
-Native Excel charts for `.xlsx` files built with **ExcelJS** or **SheetJS** — the chart support
-neither library has.
+Native Excel **charts and pivot tables** for `.xlsx` files built with **ExcelJS** or **SheetJS** —
+the support neither library has.
 
-ExcelJS is installed over 11 million times a week and cannot write a chart. SheetJS Community
-leaves charts to its paid tier. So every spreadsheet exported by every app using them arrives as
-bare numbers, and the person who opens it has to select the data and insert the chart by hand.
+ExcelJS is installed over 11 million times a week and cannot write a chart. Its pivot table code was
+merged twelve days after its last release and has never been published, so `npm install exceljs`
+cannot produce one either. SheetJS Community leaves charts to its paid tier, and does not offer pivot
+creation at all. So every spreadsheet exported by every app using them arrives as bare numbers, and
+whoever opens it selects the data and inserts the chart by hand.
 
-This adds the chart. A real, native Excel chart — click it, change a number, it redraws. Not an
-image.
+This adds them. Real, native Excel objects — click one, change a number, it redraws. Not images.
 
 ```bash
 npm install chartsheet
 ```
 
+![An Excel worksheet with a column chart written into it](https://ritusmoikaushik.github.io/chartsheet/img/excel-chart-screenshot.png)
+
+**[Documentation](https://ritusmoikaushik.github.io/chartsheet/)** ·
+[charts with ExcelJS](https://ritusmoikaushik.github.io/chartsheet/exceljs-chart.html) ·
+[pivot tables](https://ritusmoikaushik.github.io/chartsheet/exceljs-pivot-table.html) ·
+[with SheetJS](https://ritusmoikaushik.github.io/chartsheet/sheetjs-pivot-table.html) ·
+[why charts vanish](https://ritusmoikaushik.github.io/chartsheet/charts-disappearing.html) ·
+[check a file in your browser](https://ritusmoikaushik.github.io/chartsheet/xlsx-validator.html)
+
 ## Use
 
 ```js
+const fs = require('fs')
 const ExcelJS = require('exceljs')
 const { addChart } = require('chartsheet')
 
-const wb = new ExcelJS.Workbook()
-const ws = wb.addWorksheet('Data')
-ws.addRow(['Month', 'Sales', 'Costs'])
-ws.addRow(['Jan', 120, 90])
-ws.addRow(['Feb', 150, 95])
-ws.addRow(['Mar', 180, 110])
+async function main () {
+  const wb = new ExcelJS.Workbook()
+  const ws = wb.addWorksheet('Data')
+  ws.addRow(['Month', 'Sales', 'Costs'])
+  ws.addRow(['Jan', 120, 90])
+  ws.addRow(['Feb', 150, 95])
+  ws.addRow(['Mar', 180, 110])
 
-let buffer = await wb.xlsx.writeBuffer()      // ExcelJS writes the sheet
+  let buffer = await wb.xlsx.writeBuffer()   // ExcelJS writes the sheet
 
-buffer = await addChart(buffer, {             // excel-chart adds the chart
-  type: 'bar',
-  title: 'Quarterly performance',
-  categories: "'Data'!$A$2:$A$4",
-  series: [
-    { nameRef: "'Data'!$B$1", ref: "'Data'!$B$2:$B$4" },
-    { nameRef: "'Data'!$C$1", ref: "'Data'!$C$2:$C$4" },
-  ],
-  anchor: { col: 4, row: 1 },
-})
+  buffer = await addChart(buffer, {          // chartsheet adds the chart
+    type: 'bar',
+    title: 'Quarterly performance',
+    categories: "'Data'!$A$2:$A$4",
+    series: [
+      { nameRef: "'Data'!$B$1", ref: "'Data'!$B$2:$B$4" },
+      { nameRef: "'Data'!$C$1", ref: "'Data'!$C$2:$C$4" },
+    ],
+    anchor: { col: 4, row: 1 },              // top-left cell, zero-based: E2
+  })
 
-require('fs').writeFileSync('report.xlsx', buffer)
+  fs.writeFileSync('report.xlsx', buffer)
+}
+
+main()
 ```
+
+The snippets after this one are fragments — they assume they sit inside an `async function`, because
+`await` cannot go at the top level of a CommonJS file.
 
 Works the same on a SheetJS workbook:
 

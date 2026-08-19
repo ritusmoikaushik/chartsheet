@@ -1,4 +1,5 @@
-// excel-chart — native Excel charts for xlsx files built with ExcelJS or SheetJS.
+// chartsheet — native Excel charts and pivot tables for xlsx files built with
+// ExcelJS or SheetJS, neither of which can write either.
 'use strict'
 
 const JSZip = require('jszip')
