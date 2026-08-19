@@ -354,6 +354,53 @@ async function main () {
   await test('a workbook with no pivot tables is still valid', async () => {
     await assertValid(await pivotSource(), 'plain workbook with a spare sheet')
   })
+
+  // ------------------------------------------- producer-independent attribute order
+
+  // Excel writes ContentType before PartName and may write Target before Id. Assuming
+  // one order made the validator report false problems on files Excel itself produced.
+  const flipAttrs = xml => xml
+    .replace(/<Override\s+PartName="([^"]+)"\s+ContentType="([^"]+)"\s*\/>/g,
+      (m, part, type) => `<Override ContentType="${type}" PartName="${part}"/>`)
+    .replace(/<Relationship\s+Id="([^"]+)"\s+Type="([^"]+)"\s+Target="([^"]+)"\s*\/>/g,
+      (m, id, type, target) => `<Relationship Target="${target}" Type="${type}" Id="${id}"/>`)
+
+  async function reorderAttributes (buffer) {
+    const zip = await JSZip.loadAsync(buffer)
+    for (const name of Object.keys(zip.files)) {
+      if (zip.files[name].dir) continue
+      if (name !== '[Content_Types].xml' && !name.endsWith('.rels')) continue
+      zip.file(name, flipAttrs(await zip.file(name).async('string')))
+    }
+    return zip.generateAsync({ type: 'nodebuffer' })
+  }
+
+  await test('a file whose attributes are in Excel order still validates', async () => {
+    const out = await addChart(await baseWorkbook(), barSpec())
+    const flipped = await reorderAttributes(out)
+    const ct = await (await JSZip.loadAsync(flipped)).file('[Content_Types].xml').async('string')
+    assert.ok(/<Override ContentType="[^"]+" PartName=/.test(ct), 'test did not actually reorder')
+    const result = await validate(flipped)
+    assert.ok(result.valid, 'false positives on Excel attribute order: ' + result.errors.join('; '))
+  })
+
+  await test('charts can be added to a file whose rels are in Excel order', async () => {
+    const flipped = await reorderAttributes(await addChart(await baseWorkbook(), barSpec()))
+    const out = await addChart(flipped, barSpec({ type: 'line' }))
+    await assertValid(out, 'second chart onto reordered rels')
+    const zip = await JSZip.loadAsync(out)
+    assert.ok(zip.file('xl/charts/chart2.xml'), 'second chart not written')
+    assert.ok(!zip.file('xl/drawings/drawing2.xml'), 'must reuse the sheet drawing part')
+  })
+
+  await test('a genuinely missing content type is still caught after reordering', async () => {
+    const zip = await JSZip.loadAsync(await reorderAttributes(
+      await addChart(await baseWorkbook(), barSpec())))
+    const ct = await zip.file('[Content_Types].xml').async('string')
+    zip.file('[Content_Types].xml', ct.replace(/<Override[^>]*chart1\.xml[^>]*\/>/, ''))
+    const result = await validate(await zip.generateAsync({ type: 'nodebuffer' }))
+    assert.ok(!result.valid, 'reordering must not blind the validator to real defects')
+  })
   console.log(`\n${passed} passed, ${failed} failed`)
   process.exit(failed ? 1 : 0)
 }

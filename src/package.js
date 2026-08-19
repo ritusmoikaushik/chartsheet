@@ -49,9 +49,16 @@ const addRelationship = (relsXml, id, type, target) => relsXml.replace(
   '</Relationships>',
   `<Relationship Id="${id}" Type="${NS.rel}/${type}" Target="${target}"/></Relationships>`)
 
+// Attribute order inside a <Relationship> is not fixed and producers disagree, so match
+// the tag first and read its attributes independently rather than assuming Id comes first.
 const findRelTarget = (relsXml, id) => {
-  const m = relsXml.match(new RegExp(`Id="${id}"[^>]*Target="([^"]+)"`))
-  return m ? m[1] : null
+  for (const tag of relsXml.match(/<Relationship\b[^>]*?\/?>/g) || []) {
+    const found = tag.match(/\bId\s*=\s*"([^"]*)"/)
+    if (!found || found[1] !== id) continue
+    const target = tag.match(/\bTarget\s*=\s*"([^"]*)"/)
+    return target ? target[1] : null
+  }
+  return null
 }
 
 async function readPart (zip, path, fallback) {

@@ -35,10 +35,24 @@ async function validate (workbook) {
   if (!contentTypes) {
     errors.push('[Content_Types].xml is missing; the package is not a valid OOXML file')
   } else {
-    const defaults = new Set([...contentTypes.matchAll(/<Default\b[^>]*Extension="([^"]+)"/g)]
-      .map(m => m[1].toLowerCase()))
-    const overrides = new Map([...contentTypes.matchAll(
-      /<Override\b[^>]*PartName="([^"]+)"[^>]*ContentType="([^"]+)"/g)].map(m => [m[1], m[2]]))
+    // Attribute order is not fixed by the schema and producers disagree — Excel writes
+    // ContentType before PartName, most libraries write PartName first. Pull each tag,
+    // then read its attributes independently.
+    const attrOf = (tag, name) => {
+      const m = tag.match(new RegExp(`\\b${name}\\s*=\\s*"([^"]*)"`, 'i'))
+      return m ? m[1] : null
+    }
+    const tagsOf = element => contentTypes.match(
+      new RegExp(`<(?:\\w+:)?${element}\\b[^>]*?/?>`, 'gi')) || []
+
+    const defaults = new Set(tagsOf('Default')
+      .map(tag => attrOf(tag, 'Extension'))
+      .filter(Boolean)
+      .map(ext => ext.toLowerCase()))
+
+    const overrides = new Map(tagsOf('Override')
+      .map(tag => [attrOf(tag, 'PartName'), attrOf(tag, 'ContentType')])
+      .filter(([part]) => part))
 
     for (const name of names) {
       if (name === '[Content_Types].xml') continue
