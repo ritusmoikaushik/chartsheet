@@ -59,31 +59,35 @@
 const { addPivotTable } = require('chartsheet')
 const fs = require('fs')
 
-const wb = new ExcelJS.Workbook()
-const data = wb.addWorksheet('Data')
-data.addRow(['Region', 'Product', 'Sales'])
-data.addRow(['East', 'Alpha', 100])
-data.addRow(['East', 'Beta', 150])
-data.addRow(['West', 'Alpha', 200])
-data.addRow(['West', 'Beta', 120])
-data.getRow(1).font = { bold: true }
+async function main () {
+  const wb = new ExcelJS.Workbook()
+  const data = wb.addWorksheet('Data')
+  data.addRow(['Region', 'Product', 'Sales'])
+  data.addRow(['East', 'Alpha', 100])
+  data.addRow(['East', 'Beta', 150])
+  data.addRow(['West', 'Alpha', 200])
+  data.addRow(['West', 'Beta', 120])
+  data.getRow(1).font = { bold: true }
 
-// the pivot needs a sheet of its own to land on
-wb.addWorksheet('Report')
+  // the pivot needs a sheet of its own to land on
+  wb.addWorksheet('Report')
 
-let buffer = await wb.xlsx.writeBuffer()
+  let buffer = await wb.xlsx.writeBuffer()
 
-buffer = await addPivotTable(buffer, {
-  sourceSheet: 'Data',
-  sourceRef: 'A1:C5',        // include the header row
-  targetSheet: 'Report',
-  anchor: 'A3',
-  rows: ['Region'],
-  columns: ['Product'],
-  values: [{ field: 'Sales', fn: 'sum' }],
-})
+  buffer = await addPivotTable(buffer, {
+    sourceSheet: 'Data',
+    sourceRef: 'A1:C5',        // include the header row
+    targetSheet: 'Report',
+    anchor: 'A3',
+    rows: ['Region'],
+    columns: ['Product'],
+    values: [{ field: 'Sales', fn: 'sum' }],
+  })
 
-fs.writeFileSync('report.xlsx', buffer)</code></pre>
+  fs.writeFileSync('report.xlsx', buffer)
+}
+
+main()</code></pre>
 
   <p>Open <code>report.xlsx</code> and the Report sheet holds a working pivot table: sums by region
   down the side, products across the top, grand totals on both. Click it and the field list appears,

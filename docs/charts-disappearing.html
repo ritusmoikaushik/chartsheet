@@ -49,12 +49,38 @@
   </div>
 
   <h2>Reproducing it</h2>
-  <pre><code>const wb = new ExcelJS.Workbook()
-await wb.xlsx.load(fs.readFileSync('template.xlsx'))   // template has 3 charts
-wb.getWorksheet('Data').getCell('B2').value = 999
-fs.writeFileSync('out.xlsx', await wb.xlsx.writeBuffer())
+  <pre><code>const fs = require('fs')
+const ExcelJS = require('exceljs')
+const { addChart, chartCount, captureCharts } = require('chartsheet')
 
-// out.xlsx opens fine. It has your edit. It has no charts.</code></pre>
+async function main () {
+  // a template with a chart in it, standing in for yours
+  const wb = new ExcelJS.Workbook()
+  const ws = wb.addWorksheet('Data')
+  ws.addRow(['Month', 'Sales'])
+  ws.addRow(['Jan', 120])
+  ws.addRow(['Feb', 150])
+  const template = await addChart(await wb.xlsx.writeBuffer(), {
+    type: 'bar',
+    categories: "'Data'!$A$2:$A$3",
+    series: [{ ref: "'Data'!$B$2:$B$3" }],
+  })
+  fs.writeFileSync('template.xlsx', template)
+
+  // open it, change one number, write it back — the ordinary thing
+  const edit = new ExcelJS.Workbook()
+  await edit.xlsx.load(template)
+  edit.getWorksheet('Data').getCell('B2').value = 999
+  const rewritten = await edit.xlsx.writeBuffer()
+  fs.writeFileSync('out.xlsx', rewritten)
+
+  console.log('charts before:', chartCount(await captureCharts(template)))  // 1
+  console.log('charts after: ', chartCount(await captureCharts(rewritten))) // 0
+
+  // out.xlsx opens without complaint. It has your edit. It has no chart.
+}
+
+main()</code></pre>
 
   <p>This is not a bug you can configure away. It has been reported on ExcelJS in 2020
   (<em>"charts are disappearing from the worklist"</em>), in 2021 (<em>"read excel file with chart
@@ -72,17 +98,34 @@ fs.writeFileSync('out.xlsx', await wb.xlsx.writeBuffer())
   <p>Take a copy of the chart parts before ExcelJS touches the file, then put them back on the
   output:</p>
 
-  <pre><code>const { preserveCharts } = require('chartsheet')
+  <pre><code>const fs = require('fs')
+const ExcelJS = require('exceljs')
+const { addChart, preserveCharts, chartCount, captureCharts } = require('chartsheet')
 
-const original = fs.readFileSync('template.xlsx')
+async function main () {
+  const wb = new ExcelJS.Workbook()
+  const ws = wb.addWorksheet('Data')
+  ws.addRow(['Month', 'Sales'])
+  ws.addRow(['Jan', 120])
+  ws.addRow(['Feb', 150])
+  const original = await addChart(await wb.xlsx.writeBuffer(), {
+    type: 'bar',
+    categories: "'Data'!$A$2:$A$3",
+    series: [{ ref: "'Data'!$B$2:$B$3" }],
+  })
 
-const wb = new ExcelJS.Workbook()
-await wb.xlsx.load(original)
-wb.getWorksheet('Data').getCell('B2').value = 999
-const rewritten = await wb.xlsx.writeBuffer()
+  const edit = new ExcelJS.Workbook()
+  await edit.xlsx.load(original)
+  edit.getWorksheet('Data').getCell('B2').value = 999
+  const rewritten = await edit.xlsx.writeBuffer()
 
-const output = await preserveCharts(original, rewritten)
-fs.writeFileSync('out.xlsx', output)      // edit applied, charts intact</code></pre>
+  const output = await preserveCharts(original, rewritten)   // charts put back
+  fs.writeFileSync('out.xlsx', output)
+
+  console.log('charts restored:', chartCount(await captureCharts(output)))  // 1
+}
+
+main()</code></pre>
 
   <p>If the edit happens somewhere else — another process, a queue, a different machine — split it
   into the two halves:</p>

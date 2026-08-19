@@ -46,8 +46,9 @@
     "node": ">=16"
   },
   "scripts": {
-    "test": "node test/run.js",
-    "build:web": "node tools/build-web.js"
+    "test": "node test/run.js && node tools/test-docs.js",
+    "build:web": "node tools/build-web.js",
+    "test:docs": "node tools/test-docs.js"
   },
   "dependencies": {
     "jszip": "^3.10.1"

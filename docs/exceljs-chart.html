@@ -54,37 +54,42 @@
 const { addChart } = require('chartsheet')
 const fs = require('fs')
 
-const wb = new ExcelJS.Workbook()
-const ws = wb.addWorksheet('Data')
-ws.addRow(['Month', 'Sales', 'Costs'])
-ws.addRow(['Jan', 120, 90])
-ws.addRow(['Feb', 150, 95])
-ws.addRow(['Mar', 180, 110])
-ws.addRow(['Apr', 140, 105])
-ws.getRow(1).font = { bold: true }
+async function main () {
+  const wb = new ExcelJS.Workbook()
+  const ws = wb.addWorksheet('Data')
+  ws.addRow(['Month', 'Sales', 'Costs'])
+  ws.addRow(['Jan', 120, 90])
+  ws.addRow(['Feb', 150, 95])
+  ws.addRow(['Mar', 180, 110])
+  ws.addRow(['Apr', 140, 105])
+  ws.getRow(1).font = { bold: true }
 
-let buffer = await wb.xlsx.writeBuffer()
+  let buffer = await wb.xlsx.writeBuffer()
 
-buffer = await addChart(buffer, {
-  type: 'bar',
-  title: 'Quarterly performance',
-  xTitle: 'Month',
-  yTitle: 'INR',
-  categories: "'Data'!$A$2:$A$5",
-  series: [
-    { nameRef: "'Data'!$B$1", ref: "'Data'!$B$2:$B$5" },
-    { nameRef: "'Data'!$C$1", ref: "'Data'!$C$2:$C$5" },
-  ],
-  anchor: { col: 4, row: 1 },
-})
+  buffer = await addChart(buffer, {
+    type: 'bar',
+    title: 'Quarterly performance',
+    xTitle: 'Month',
+    yTitle: 'INR',
+    categories: "'Data'!$A$2:$A$5",
+    series: [
+      { nameRef: "'Data'!$B$1", ref: "'Data'!$B$2:$B$5" },
+      { nameRef: "'Data'!$C$1", ref: "'Data'!$C$2:$C$5" },
+    ],
+    anchor: { col: 4, row: 1 },
+  })
 
-fs.writeFileSync('report.xlsx', buffer)</code></pre>
+  fs.writeFileSync('report.xlsx', buffer)
+}
+
+main()</code></pre>
 
   <div class="note">
     <p>Cell references are ordinary Excel syntax and should be absolute:
     <code>'Sheet name'!$B$2:$B$10</code>. Quote the sheet name whenever it contains a space.</p>
   </div>
 
+  <p class="note"><strong>The snippets from here on are fragments</strong> — they assume they sit inside an <code>async function</code>, like the complete example above. <code>await</code> cannot go at the top level of a CommonJS file: Node reparses the file as an ES module and <code>require</code> then stops working.</p>
   <h2>A line chart</h2>
   <pre><code>buffer = await addChart(buffer, {
   type: 'line',

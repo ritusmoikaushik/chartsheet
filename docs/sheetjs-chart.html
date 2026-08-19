@@ -52,30 +52,34 @@
 const { addChart } = require('chartsheet')
 const fs = require('fs')
 
-const wb = XLSX.utils.book_new()
-const ws = XLSX.utils.aoa_to_sheet([
-  ['Month', 'Sales', 'Costs'],
-  ['Jan', 120, 90],
-  ['Feb', 150, 95],
-  ['Mar', 180, 110],
-  ['Apr', 140, 105],
-])
-XLSX.utils.book_append_sheet(wb, ws, 'Data')
+async function main () {
+  const wb = XLSX.utils.book_new()
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Month', 'Sales', 'Costs'],
+    ['Jan', 120, 90],
+    ['Feb', 150, 95],
+    ['Mar', 180, 110],
+    ['Apr', 140, 105],
+  ])
+  XLSX.utils.book_append_sheet(wb, ws, 'Data')
 
-let buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
+  let buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
 
-buffer = await addChart(buffer, {
-  type: 'bar',
-  title: 'Quarterly performance',
-  categories: "'Data'!$A$2:$A$5",
-  series: [
-    { nameRef: "'Data'!$B$1", ref: "'Data'!$B$2:$B$5" },
-    { nameRef: "'Data'!$C$1", ref: "'Data'!$C$2:$C$5" },
-  ],
-  anchor: { col: 4, row: 1 },
-})
+  buffer = await addChart(buffer, {
+    type: 'bar',
+    title: 'Quarterly performance',
+    categories: "'Data'!$A$2:$A$5",
+    series: [
+      { nameRef: "'Data'!$B$1", ref: "'Data'!$B$2:$B$5" },
+      { nameRef: "'Data'!$C$1", ref: "'Data'!$C$2:$C$5" },
+    ],
+    anchor: { col: 4, row: 1 },
+  })
 
-fs.writeFileSync('report.xlsx', buffer)</code></pre>
+  fs.writeFileSync('report.xlsx', buffer)
+}
+
+main()</code></pre>
 
   <p>Nothing about this is SheetJS-specific. Charts are added to finished <code>.xlsx</code> bytes,
   so the same call works on a workbook from ExcelJS, from SheetJS, or from anything else that emits

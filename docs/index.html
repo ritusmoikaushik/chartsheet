@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="google-site-verification" content="u4Wa5s3wTJRt0BQYixUTRUOCkDLO4ASa2jwK_Bt_FXw">
-<title>chartsheet — Excel charts for JavaScript, with ExcelJS or SheetJS</title>
-<meta name="description" content="Add native Microsoft Excel charts to .xlsx files from JavaScript. Works with ExcelJS and SheetJS, which cannot write charts themselves. Bar, line, pie, doughnut, area, scatter and radar.">
+<title>chartsheet — Excel charts and pivot tables for JavaScript, with ExcelJS or SheetJS</title>
+<meta name="description" content="Add native Excel charts and pivot tables to .xlsx files built with ExcelJS or SheetJS. Real charts bound to cells, not images. MIT licensed, no dependencies beyond JSZip.">
 <link rel="canonical" href="https://ritusmoikaushik.github.io/chartsheet/">
 <meta property="og:title" content="chartsheet — Excel charts for JavaScript">
 <meta property="og:description" content="Native Excel charts for .xlsx files built with ExcelJS or SheetJS.">
@@ -37,44 +37,47 @@
 
 <main class="wrap">
   <span class="pill">MIT licensed</span>
-  <h1>Excel charts for JavaScript</h1>
+  <h1>Excel charts and pivot tables for JavaScript</h1>
   <p class="lede">Add a real, native chart to an <code>.xlsx</code> file from Node.js — one that
   redraws when the numbers change, not a picture pasted onto a sheet.</p>
 
   <div class="install">npm install chartsheet</div>
 
   <div class="answer">
-    <p><strong>Short answer.</strong> ExcelJS and SheetJS both build spreadsheets and neither can
-    write a chart. <code>chartsheet</code> writes the chart, drawing and relationship parts they leave
+    <p><strong>Short answer.</strong> ExcelJS and SheetJS both build spreadsheets. Neither can write a chart, and neither can build a pivot table. <code>chartsheet</code> writes the chart, drawing and relationship parts they leave
     out, straight into the workbook you already produced. It doesn't replace either library — it
     finishes the file.</p>
   </div>
 
   <h2>Use it</h2>
-  <pre><code>const ExcelJS = require('exceljs')
+  <pre><code>const fs = require('fs')
+const ExcelJS = require('exceljs')
 const { addChart } = require('chartsheet')
 
-const wb = new ExcelJS.Workbook()
-const ws = wb.addWorksheet('Data')
-ws.addRow(['Month', 'Sales', 'Costs'])
-ws.addRow(['Jan', 120, 90])
-ws.addRow(['Feb', 150, 95])
-ws.addRow(['Mar', 180, 110])
+async function main () {
+  const wb = new ExcelJS.Workbook()
+  const ws = wb.addWorksheet('Data')
+  ws.addRow(['Month', 'Sales', 'Costs'])
+  ws.addRow(['Jan', 120, 90])
+  ws.addRow(['Feb', 150, 95])
+  ws.addRow(['Mar', 180, 110])
 
-let buffer = await wb.xlsx.writeBuffer()        // ExcelJS writes the sheet
+  let buffer = await wb.xlsx.writeBuffer()   // ExcelJS writes the sheet
+  buffer = await addChart(buffer, {          // chartsheet adds the chart
+    type: 'bar',
+    title: 'Quarterly performance',
+    categories: "'Data'!$A$2:$A$4",
+    series: [
+      { nameRef: "'Data'!$B$1", ref: "'Data'!$B$2:$B$4" },
+      { nameRef: "'Data'!$C$1", ref: "'Data'!$C$2:$C$4" },
+    ],
+    anchor: { col: 4, row: 1 },              // top-left cell, zero-based: E2
+  })
 
-buffer = await addChart(buffer, {               // chartsheet adds the chart
-  type: 'bar',
-  title: 'Quarterly performance',
-  categories: "'Data'!$A$2:$A$4",
-  series: [
-    { nameRef: "'Data'!$B$1", ref: "'Data'!$B$2:$B$4" },
-    { nameRef: "'Data'!$C$1", ref: "'Data'!$C$2:$C$4" },
-  ],
-  anchor: { col: 4, row: 1 },
-})
+  fs.writeFileSync('report.xlsx', buffer)
+}
 
-fs.writeFileSync('report.xlsx', buffer)</code></pre>
+main()</code></pre>
 
   <p>Open <code>report.xlsx</code> in Excel and the chart is selectable, editable and live. Change a
   value in column B and it redraws. The same file opens in Google Sheets and LibreOffice.</p>
@@ -84,6 +87,23 @@ fs.writeFileSync('report.xlsx', buffer)</code></pre>
   <code>doughnut</code> · <code>area</code> · <code>scatter</code> · <code>radar</code></p>
   <p>With titles and axis titles, several series, stacking, data labels, series colours, number
   formats, legend placement, and as many charts on a sheet as you like.</p>
+
+  <h2>And pivot tables</h2>
+  <p>ExcelJS has no pivot table API in any version you can install — the implementation was merged
+  twelve days after its last release and has never been published. <code>addPivotTable</code> writes
+  a real one, with a working pivot cache, into the finished file.</p>
+  <pre><code>const { addPivotTable } = require('chartsheet')
+
+buffer = await addPivotTable(buffer, {
+  sourceSheet: 'Data',
+  sourceRef: 'A1:C500',      // include the header row
+  targetSheet: 'Report',     // an existing, empty sheet
+  rows: ['Region'],
+  columns: ['Product'],
+  values: [{ field: 'Sales', fn: 'sum' }],
+})</code></pre>
+  <p>Change the fields, expand it, refresh it — it behaves as one built by hand.
+  <a href="exceljs-pivot-table.html">How it works and why ExcelJS cannot do it</a>.</p>
 
   <h2>It also stops ExcelJS destroying charts</h2>
   <p>Open a workbook that already has charts, edit a cell, write it back — and ExcelJS deletes every

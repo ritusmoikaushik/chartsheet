@@ -35,6 +35,7 @@
   <h2>addChart(workbook, spec)</h2>
   <p>Adds one chart. <code>workbook</code> is a <code>Buffer</code>, <code>Uint8Array</code> or
   <code>ArrayBuffer</code>. Returns a <code>Promise&lt;Buffer&gt;</code>.</p>
+  <p class="note"><strong>The short snippets below are fragments.</strong> They assume they are inside an <code>async function</code>, because <code>await</code> cannot sit at the top level of a CommonJS file — Node reparses the file as an ES module and then <code>require</code> stops working. The full examples on this page are complete and run as they are.</p>
   <pre><code>const buffer = await addChart(input, {
   type: 'bar',
   title: 'Quarterly performance',
