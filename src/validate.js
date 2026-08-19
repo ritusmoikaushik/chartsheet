@@ -18,8 +18,13 @@ const RE = {
 }
 
 async function validate (workbook) {
+  // JSZip takes Buffer, ArrayBuffer, Uint8Array or Blob directly. Only wrap when we
+  // have a Buffer to wrap — this file runs in browsers too.
   const zip = await JSZip.loadAsync(
-    Buffer.isBuffer(workbook) ? workbook : Buffer.from(workbook))
+    typeof Buffer !== 'undefined' && !Buffer.isBuffer(workbook) &&
+    !(workbook instanceof ArrayBuffer) && !ArrayBuffer.isView(workbook)
+      ? Buffer.from(workbook)
+      : workbook)
   const names = Object.keys(zip.files).filter(n => !zip.files[n].dir)
   const errors = []
   const warnings = []

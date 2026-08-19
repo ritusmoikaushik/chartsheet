@@ -159,3 +159,30 @@ footer.site a { color: var(--ink-faint); }
 }
 
 img, svg { max-width: 100%; height: auto; }
+
+/* validator page */
+.dropzone {
+  border: 2px dashed var(--rule, #c9cdd4);
+  border-radius: 10px;
+  padding: 2.4rem 1.2rem;
+  text-align: center;
+  cursor: pointer;
+  margin: 1.6rem 0 0.8rem;
+  transition: border-color .12s, background .12s;
+}
+.dropzone:hover, .dropzone:focus, .dropzone.over {
+  border-color: #2f6f4f;
+  background: rgba(47, 111, 79, .05);
+  outline: none;
+}
+.dz-main { margin: 0; font-size: 1.05rem; font-weight: 600; }
+.dz-sub { margin: .3rem 0 0; font-size: .9rem; opacity: .7; }
+#result { margin: 1.4rem 0 2rem; }
+.verdict { font-weight: 600; margin: 0 0 .6rem; }
+.verdict.ok { color: #2f6f4f; }
+.verdict.bad { color: #a3342b; }
+.issues { margin: .4rem 0 1rem; padding-left: 1.1rem; }
+.issues li { margin: .35rem 0; line-height: 1.45; }
+.issues li.err::marker { color: #a3342b; }
+.issues li.warn::marker { color: #b07d20; }
+#result .sub { font-size: .93rem; opacity: .82; }

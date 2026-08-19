@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="google-site-verification" content="u4Wa5s3wTJRt0BQYixUTRUOCkDLO4ASa2jwK_Bt_FXw">
+<title>xlsx validator — find out why Excel says “we found a problem with some content”</title>
+<meta name="description" content="Excel repairs your .xlsx and tells you nothing. Drop the file here and get the actual defect named — missing content types, broken relationships, orphaned parts. Runs in your browser; the file is never uploaded.">
+<link rel="canonical" href="https://ritusmoikaushik.github.io/chartsheet/xlsx-validator.html">
+<meta property="og:title" content="Why does Excel say “we found a problem with some content”?">
+<meta property="og:description" content="Drop the .xlsx in and get the actual defect named. Nothing is uploaded.">
+<link rel="stylesheet" href="style.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"Why does Excel say we found a problem with some content?",
+"acceptedAnswer":{"@type":"Answer","text":"Because a part of the .xlsx package is inconsistent. The most common causes are a part with no content type declared in [Content_Types].xml, a relationship pointing at a part that is not there, a drawing element in the wrong position inside the worksheet, or duplicate shape ids. Excel deliberately does not say which, because the message is aimed at end users rather than developers."}},
+{"@type":"Question","name":"Is my spreadsheet uploaded anywhere?",
+"acceptedAnswer":{"@type":"Answer","text":"No. The check runs entirely inside your browser using JavaScript. The file is read locally and never sent to any server. There is no server."}},
+{"@type":"Question","name":"Can I check files that were not made with this library?",
+"acceptedAnswer":{"@type":"Answer","text":"Yes. It reads the package structure of any .xlsx file, whatever produced it — ExcelJS, SheetJS, openpyxl, Apache POI, a report server, or Excel itself."}},
+{"@type":"Question","name":"Excel repaired my file. What did it change?",
+"acceptedAnswer":{"@type":"Answer","text":"Excel discards whatever it could not read and writes a clean file. That is why charts, drawings or pivot tables disappear after a repair without any error. Checking the file before Excel touches it tells you what would have been lost."}}]}
+</script>
+</head>
+<body>
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="./">chartsheet</a>
+    <nav>
+      <a href="exceljs-chart.html">ExcelJS</a>
+      <a href="exceljs-pivot-table.html">Pivot tables</a>
+      <a href="sheetjs-chart.html">SheetJS</a>
+      <a href="charts-disappearing.html">Charts disappearing</a>
+      <a href="xlsx-validator.html">Validator</a>
+      <a href="api.html">API</a>
+      <a href="https://github.com/ritusmoikaushik/chartsheet">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>Why does Excel say “we found a problem with some content”?</h1>
+  <p class="lede">Because something in the package is inconsistent — and Excel will not tell you
+  what. Drop the file below and it gets named.</p>
+
+  <div id="drop" class="dropzone" tabindex="0" role="button"
+       aria-label="Choose or drop an .xlsx file to check">
+    <p class="dz-main">Drop an <code>.xlsx</code> file here</p>
+    <p class="dz-sub">or click to choose one</p>
+    <input id="file" type="file" accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+  </div>
+  <p class="note" id="privacy"><strong>Nothing is uploaded.</strong> The check runs in your browser.
+  There is no server to send it to.</p>
+
+  <div id="result" hidden></div>
+
+  <h2>What it checks</h2>
+  <p>These are the defects that produce Excel's one unhelpful sentence. Each is silent — the file
+  looks fine until Excel opens it.</p>
+  <ul>
+    <li>Parts with <strong>no content type</strong>. Chart, drawing, pivot and worksheet parts each
+      need their own <code>&lt;Override&gt;</code> in <code>[Content_Types].xml</code>. The generic
+      <code>&lt;Default Extension="xml"&gt;</code> looks like it covers them and does not.</li>
+    <li><strong>Relationships pointing at nothing</strong> — an <code>r:id</code> whose target part
+      is not in the package.</li>
+    <li><strong>Orphaned parts</strong> — a drawing or chart nothing refers to.</li>
+    <li><strong>A <code>&lt;drawing&gt;</code> in the wrong place.</strong> It must be the last child
+      of <code>&lt;worksheet&gt;</code>, after <code>&lt;/sheetData&gt;</code>, and there may be only
+      one per sheet.</li>
+    <li><strong>Duplicate shape ids</strong> within one drawing part.</li>
+    <li><strong>Charts with no series</strong>, or with unprefixed elements — every element in a
+      chart part must carry its namespace prefix.</li>
+    <li><strong>Pivot tables whose cache is not bound</strong> — a <code>cacheId</code> not declared
+      in <code>&lt;pivotCaches&gt;</code>, a table part with no relationship to its cache definition,
+      or a <code>recordCount</code> that disagrees with the records actually written.</li>
+  </ul>
+
+  <h2>The same check in your build</h2>
+  <p>This page is a wrapper around one function. If you would rather fail the build than find out
+  in Excel:</p>
+  <div class="install">npm install chartsheet</div>
+  <pre><code>const { validate } = require('chartsheet')
+const fs = require('fs')
+
+const result = await validate(fs.readFileSync('report.xlsx'))
+if (!result.valid) {
+  console.error(result.errors.join('\n'))
+  process.exit(1)
+}</code></pre>
+  <p>It works on any <code>.xlsx</code>, whatever wrote it.</p>
+
+  <div class="faq">
+    <h2>Questions</h2>
+
+    <h3>Is my spreadsheet uploaded?</h3>
+    <p>No. There is no server. The file is read in your browser and the check runs there.</p>
+
+    <h3>Excel repaired the file. What did it remove?</h3>
+    <p>Whatever it could not read. It discards the broken parts and writes a clean file, which is why
+    charts and pivot tables vanish after a repair with no error shown. Checking before Excel touches
+    it tells you what was about to be lost.</p>
+
+    <h3>It says valid, but Excel still complains.</h3>
+    <p>This checks package structure — content types, relationships, part placement — which is what
+    breaks in generated files. It does not validate every element against the full ECMA-376 schema.
+    If the structure is sound and Excel still objects, the problem is inside a part rather than in
+    how the parts are wired. Open an issue with the file if you can share it.</p>
+
+    <h3>My charts disappeared after a round trip and there was no error at all.</h3>
+    <p>That is a different problem — the file is not broken, the charts were simply never written.
+    <a href="charts-disappearing.html">Here is what happens and how to stop it</a>.</p>
+  </div>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <p>MIT licensed. <a href="https://github.com/ritusmoikaushik/chartsheet">Source on GitHub</a>.
+    Microsoft and Excel are trademarks of Microsoft Corporation; this project is not affiliated with
+    or endorsed by Microsoft.</p>
+  </div>
+</footer>
+
+<script src="validator.js"></script>
+<script>
+(function () {
+  var drop = document.getElementById('drop')
+  var input = document.getElementById('file')
+  var out = document.getElementById('result')
+
+  function esc (s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  }
+
+  function show (html) { out.hidden = false; out.innerHTML = html }
+
+  function report (name, result) {
+    var head = result.valid
+      ? '<p class="verdict ok">No structural problems found in <code>' + esc(name) + '</code></p>'
+      : '<p class="verdict bad">' + result.errors.length + ' problem' +
+        (result.errors.length === 1 ? '' : 's') + ' found in <code>' + esc(name) + '</code></p>'
+
+    var body = ''
+    if (result.errors.length) {
+      body += '<ul class="issues">' +
+        result.errors.map(function (e) { return '<li class="err">' + esc(e) + '</li>' }).join('') +
+        '</ul>'
+    }
+    if (result.warnings.length) {
+      body += '<p class="sub">Warnings — these do not stop Excel opening the file:</p><ul class="issues">' +
+        result.warnings.map(function (w) { return '<li class="warn">' + esc(w) + '</li>' }).join('') +
+        '</ul>'
+    }
+    if (result.valid && !result.warnings.length) {
+      body += '<p class="sub">Content types, relationships, part placement, charts and pivot caches ' +
+        'all check out. If Excel still objects, the problem is inside a part rather than in how the ' +
+        'parts are wired together.</p>'
+    }
+    show(head + body)
+  }
+
+  function check (file) {
+    if (!file) return
+    show('<p class="verdict">Checking <code>' + esc(file.name) + '</code>…</p>')
+    var reader = new FileReader()
+    reader.onerror = function () { show('<p class="verdict bad">Could not read that file.</p>') }
+    reader.onload = function () {
+      chartsheetWeb.validate(new Uint8Array(reader.result)).then(function (result) {
+        report(file.name, result)
+      }).catch(function (err) {
+        show('<p class="verdict bad">That does not look like an .xlsx package.</p>' +
+          '<ul class="issues"><li class="err">' + esc(err.message) + '</li></ul>' +
+          '<p class="sub">An .xlsx file is a zip archive. If this is an old .xls, or a .csv renamed, ' +
+          'this check does not apply.</p>')
+      })
+    }
+    reader.readAsArrayBuffer(file)
+  }
+
+  drop.addEventListener('click', function () { input.click() })
+  drop.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click() }
+  })
+  input.addEventListener('change', function () { check(input.files[0]) })
+
+  ;['dragenter', 'dragover'].forEach(function (type) {
+    drop.addEventListener(type, function (e) { e.preventDefault(); drop.classList.add('over') })
+  })
+  ;['dragleave', 'drop'].forEach(function (type) {
+    drop.addEventListener(type, function (e) { e.preventDefault(); drop.classList.remove('over') })
+  })
+  drop.addEventListener('drop', function (e) {
+    if (e.dataTransfer && e.dataTransfer.files) check(e.dataTransfer.files[0])
+  })
+})()
+</script>
+</body>
+</html>
