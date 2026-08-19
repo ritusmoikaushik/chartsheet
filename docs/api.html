@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="google-site-verification" content="u4Wa5s3wTJRt0BQYixUTRUOCkDLO4ASa2jwK_Bt_FXw">
-<title>chartsheet API reference — addChart, preserveCharts, validate</title>
-<meta name="description" content="Full API reference for chartsheet: addChart, addCharts, captureCharts, restoreCharts, preserveCharts and validate. Every chart type and option.">
+<title>chartsheet API reference — addChart, addPivotTable, preserveCharts, validate</title>
+<meta name="description" content="Full API reference for chartsheet: addChart, addPivotTable, captureCharts, restoreCharts, preserveCharts and validate. Every chart type, pivot option and validator rule.">
 <link rel="canonical" href="https://ritusmoikaushik.github.io/chartsheet/api.html">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -15,6 +15,7 @@
     <a class="brand" href="./">chartsheet</a>
     <nav>
       <a href="exceljs-chart.html">ExcelJS</a>
+      <a href="exceljs-pivot-table.html">Pivot tables</a>
       <a href="sheetjs-chart.html">SheetJS</a>
       <a href="charts-disappearing.html">Charts disappearing</a>
       <a href="api.html">API</a>
@@ -76,6 +77,43 @@
   <h2>addCharts(workbook, specs)</h2>
   <p>Adds several charts in one call. Equivalent to calling <code>addChart</code> repeatedly.</p>
   <pre><code>const buffer = await addCharts(input, [barSpec, lineSpec, pieSpec])</code></pre>
+
+  <h2>addPivotTable(workbook, spec)</h2>
+  <p>Writes a native pivot table into a finished workbook. ExcelJS has no pivot table API in any
+  released version — <a href="exceljs-pivot-table.html">why that is</a>.</p>
+  <pre><code>const buffer = await addPivotTable(input, {
+  sourceSheet: 'Data',
+  sourceRef: 'A1:C500',
+  targetSheet: 'Report',
+  anchor: 'A3',
+  rows: ['Region'],
+  columns: ['Product'],
+  values: [{ field: 'Sales', fn: 'sum' }],
+})</code></pre>
+
+  <h3>Spec</h3>
+  <table>
+    <tr><th>Key</th><th>Type</th><th>Meaning</th></tr>
+    <tr><td><code>sourceSheet</code></td><td>string</td><td>Sheet holding the source table. Defaults to the first sheet</td></tr>
+    <tr><td><code>sourceRef</code></td><td>string</td><td><strong>Required.</strong> Range including the header row</td></tr>
+    <tr><td><code>targetSheet</code></td><td>string</td><td>Sheet the table lands on. Must already exist</td></tr>
+    <tr><td><code>anchor</code></td><td>string</td><td>Top-left cell. Default <code>'A3'</code></td></tr>
+    <tr><td><code>rows</code></td><td>string[]</td><td>Field names down the side</td></tr>
+    <tr><td><code>columns</code></td><td>string[]</td><td>Field names across the top</td></tr>
+    <tr><td><code>filters</code></td><td>string[]</td><td>Field names as page filters</td></tr>
+    <tr><td><code>values</code></td><td>array</td><td><strong>Required.</strong> <code>['Sales']</code> or <code>[{ field, fn, name }]</code></td></tr>
+    <tr><td><code>name</code></td><td>string</td><td>Table name. Default <code>'PivotTable1'</code></td></tr>
+  </table>
+  <p>At least one of <code>rows</code> or <code>columns</code> is required. <code>fn</code> is one of
+  <code>sum</code>, <code>count</code>, <code>average</code>, <code>max</code>, <code>min</code>,
+  <code>product</code>, <code>countNums</code>, <code>stdDev</code>, <code>stdDevp</code>,
+  <code>var</code>, <code>varp</code>; it defaults to <code>sum</code>.</p>
+  <p>Aggregation is left to Excel. The cache is written with <code>refreshOnLoad</code>, so Excel
+  computes rows, columns and totals from the cached records when the file opens.</p>
+
+  <h2>addPivotTables(workbook, specs)</h2>
+  <p>Adds several pivot tables in one call.</p>
+  <pre><code>const buffer = await addPivotTables(input, [byRegion, byQuarter])</code></pre>
 
   <h2>captureCharts(workbook)</h2>
   <p>Reads every chart on every sheet, following each chart's own relationships so colour and style

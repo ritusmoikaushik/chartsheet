@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="google-site-verification" content="u4Wa5s3wTJRt0BQYixUTRUOCkDLO4ASa2jwK_Bt_FXw">
+<title>How to add a pivot table in ExcelJS — native .xlsx pivot tables in Node.js</title>
+<meta name="description" content="ExcelJS cannot create pivot tables. The code was merged in 2023 but never released. Here is how to write a real pivot table into a workbook ExcelJS produced.">
+<link rel="canonical" href="https://ritusmoikaushik.github.io/chartsheet/exceljs-pivot-table.html">
+<meta property="og:title" content="How to add a pivot table in ExcelJS">
+<meta property="og:description" content="ExcelJS has no pivot table API. Here is how to add one anyway.">
+<link rel="stylesheet" href="style.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"Can ExcelJS create pivot tables?",
+"acceptedAnswer":{"@type":"Answer","text":"No. There is no pivot table API in any released version of ExcelJS. Support was merged into the master branch on 31 October 2023, twelve days after the last release, and has never been published, so npm install exceljs cannot give you one."}},
+{"@type":"Question","name":"Why does exceljs.addPivotTable not exist?",
+"acceptedAnswer":{"@type":"Answer","text":"Because the code that adds it was never released. The last ExcelJS release, 4.4.0, was published on 19 October 2023 and the pivot table commit landed on 31 October 2023. Installing from npm gives you the released version, which has no pivot support."}},
+{"@type":"Question","name":"Is it a real pivot table or a static range of cells?",
+"acceptedAnswer":{"@type":"Answer","text":"A real, native Excel pivot table with a pivot cache. You can change the fields, expand and collapse it, and refresh it, exactly as with one built by hand in Excel."}},
+{"@type":"Question","name":"Does the pivot table work with SheetJS output too?",
+"acceptedAnswer":{"@type":"Answer","text":"Yes. The pivot parts are written into a finished .xlsx buffer, so anything producing valid xlsx output works, including SheetJS."}}]}
+</script>
+</head>
+<body>
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="./">chartsheet</a>
+    <nav>
+      <a href="exceljs-chart.html">ExcelJS</a>
+      <a href="exceljs-pivot-table.html">Pivot tables</a>
+      <a href="sheetjs-chart.html">SheetJS</a>
+      <a href="charts-disappearing.html">Charts disappearing</a>
+      <a href="api.html">API</a>
+      <a href="https://github.com/ritusmoikaushik/chartsheet">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>How to add a pivot table in ExcelJS</h1>
+  <p class="lede">There is no <code>addPivotTable</code> in any version you can install. Here is why,
+  and how to get a real one into the file anyway.</p>
+
+  <div class="answer">
+    <p><strong>Short answer.</strong> ExcelJS has no pivot table API in any released version. The
+    implementation was merged into its master branch on 31 October 2023 — twelve days after the last
+    release — and has never been published, so <code>npm install exceljs</code> cannot produce one.
+    Write the workbook as usual, then pass the buffer through <code>addPivotTable</code>.</p>
+  </div>
+
+  <div class="install">npm install chartsheet</div>
+
+  <h2>A pivot table from a sheet of data</h2>
+  <pre><code>const ExcelJS = require('exceljs')
+const { addPivotTable } = require('chartsheet')
+const fs = require('fs')
+
+const wb = new ExcelJS.Workbook()
+const data = wb.addWorksheet('Data')
+data.addRow(['Region', 'Product', 'Sales'])
+data.addRow(['East', 'Alpha', 100])
+data.addRow(['East', 'Beta', 150])
+data.addRow(['West', 'Alpha', 200])
+data.addRow(['West', 'Beta', 120])
+data.getRow(1).font = { bold: true }
+
+// the pivot needs a sheet of its own to land on
+wb.addWorksheet('Report')
+
+let buffer = await wb.xlsx.writeBuffer()
+
+buffer = await addPivotTable(buffer, {
+  sourceSheet: 'Data',
+  sourceRef: 'A1:C5',        // include the header row
+  targetSheet: 'Report',
+  anchor: 'A3',
+  rows: ['Region'],
+  columns: ['Product'],
+  values: [{ field: 'Sales', fn: 'sum' }],
+})
+
+fs.writeFileSync('report.xlsx', buffer)</code></pre>
+
+  <p>Open <code>report.xlsx</code> and the Report sheet holds a working pivot table: sums by region
+  down the side, products across the top, grand totals on both. Click it and the field list appears,
+  same as one built by hand.</p>
+
+  <h2>Options</h2>
+  <table>
+    <tr><th>Option</th><th>Meaning</th></tr>
+    <tr><td><code>sourceSheet</code></td><td>Sheet holding the source table. Defaults to the first sheet</td></tr>
+    <tr><td><code>sourceRef</code></td><td>The range, <em>including</em> the header row — <code>'A1:C500'</code></td></tr>
+    <tr><td><code>targetSheet</code></td><td>Sheet the table is written to. Must already exist</td></tr>
+    <tr><td><code>anchor</code></td><td>Top-left cell. Default <code>'A3'</code></td></tr>
+    <tr><td><code>rows</code>, <code>columns</code>, <code>filters</code></td><td>Field names, taken from the header row</td></tr>
+    <tr><td><code>values</code></td><td><code>['Sales']</code>, or <code>[{ field, fn, name }]</code></td></tr>
+    <tr><td><code>name</code></td><td>Table name. Default <code>'PivotTable1'</code></td></tr>
+  </table>
+
+  <p><code>fn</code> is one of <code>sum</code>, <code>count</code>, <code>average</code>,
+  <code>max</code>, <code>min</code>, <code>product</code>, <code>countNums</code>,
+  <code>stdDev</code>, <code>stdDevp</code>, <code>var</code>, <code>varp</code>.</p>
+
+  <h2>Several tables at once</h2>
+  <pre><code>const { addPivotTables } = require('chartsheet')
+
+buffer = await addPivotTables(buffer, [
+  { sourceSheet: 'Data', sourceRef: 'A1:D500', targetSheet: 'Report', anchor: 'A3',
+    rows: ['Region'], columns: ['Product'], values: [{ field: 'Sales', fn: 'sum' }] },
+  { sourceSheet: 'Data', sourceRef: 'A1:D500', targetSheet: 'Report', anchor: 'A20',
+    name: 'PivotTable2',
+    rows: ['Quarter'], values: [{ field: 'Sales', fn: 'average' }] },
+])</code></pre>
+
+  <h2>If you would rather write the parts yourself</h2>
+  <p>A pivot table is four things in the package, and each one is a silent failure if you get it
+  wrong — Excel says only <em>“we found a problem with some content”</em>.</p>
+  <ul>
+    <li><code>xl/pivotCache/pivotCacheDefinition1.xml</code> — the source range and one
+      <code>cacheField</code> per column, each listing its distinct values as
+      <code>sharedItems</code>.</li>
+    <li><code>xl/pivotCache/pivotCacheRecords1.xml</code> — one <code>&lt;r&gt;</code> per data row,
+      referring to shared items <em>by index</em> rather than repeating values. The
+      <code>recordCount</code> on the definition must match the number of records here, or the totals
+      come out wrong with no warning at all.</li>
+    <li><code>xl/pivotTables/pivotTable1.xml</code> — the layout, plus
+      <strong>its own relationship to the cache definition</strong>. The <code>cacheId</code> alone is
+      not enough; without that relationship Excel reports a problem with the content.</li>
+    <li><code>&lt;pivotCaches&gt;</code> in <code>xl/workbook.xml</code>, binding the
+      <code>cacheId</code> to the cache definition. It sits late in the workbook element order and
+      must come before <code>extLst</code>.</li>
+  </ul>
+  <p>All four new parts also need their own <code>&lt;Override&gt;</code> entries in
+  <code>[Content_Types].xml</code>. The generic <code>&lt;Default Extension="xml"&gt;</code> looks
+  like it should cover them and does not.</p>
+
+  <p>One thing worth knowing before you start: you do not have to compute the aggregation. Setting
+  <code>refreshOnLoad="1"</code> on the cache definition makes Excel rebuild rows, columns and totals
+  from the cached records when the file opens. Reimplementing Excel's own aggregation in JavaScript
+  is a great deal of work to arrive at the same numbers.</p>
+
+  <h2>Checking the file</h2>
+  <pre><code>const { validate } = require('chartsheet')
+
+const result = await validate(fs.readFileSync('report.xlsx'))
+console.log(result.valid, result.errors)</code></pre>
+  <p>This reports the specific defect instead of Excel's one unhelpful sentence — an unbound
+  <code>cacheId</code>, a missing cache relationship, a <code>recordCount</code> that disagrees with
+  the records. It works on any <code>.xlsx</code>, not only files this library produced.</p>
+
+  <div class="faq">
+    <h2>Questions</h2>
+
+    <h3>Why is there no <code>addPivotTable</code> in ExcelJS?</h3>
+    <p>Because the code that adds it was never released. ExcelJS 4.4.0 was published on 19 October
+    2023; the pivot table commit landed on 31 October 2023. npm gives you the release, and the
+    release has no pivot support.</p>
+
+    <h3>Is it a real pivot table?</h3>
+    <p>Yes — a native table with a pivot cache. Change the fields, expand and collapse, refresh it.
+    Not a static block of cells formatted to look like one.</p>
+
+    <h3>Does it work with SheetJS?</h3>
+    <p>Yes. The parts are written into a finished <code>.xlsx</code> buffer, so anything producing
+    valid xlsx output works.</p>
+
+    <h3>Can I have a chart and a pivot table in the same workbook?</h3>
+    <p>Yes. Pass the buffer through both — <a href="exceljs-chart.html">charts</a> and pivot tables
+    are separate parts and do not collide.</p>
+  </div>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <p>MIT licensed. <a href="https://github.com/ritusmoikaushik/chartsheet">Source on GitHub</a>.
+    Microsoft and Excel are trademarks of Microsoft Corporation; this project is not affiliated with
+    or endorsed by Microsoft.</p>
+  </div>
+</footer>
+</body>
+</html>
