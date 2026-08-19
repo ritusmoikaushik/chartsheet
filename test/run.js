@@ -7,7 +7,10 @@ const fs = require('fs')
 const path = require('path')
 const ExcelJS = require('exceljs')
 const JSZip = require('jszip')
-const { addChart, addCharts, validate, captureCharts, restoreCharts, chartCount } = require('../src')
+const {
+  addChart, addCharts, validate, captureCharts, restoreCharts, chartCount,
+  addPivotTable, addPivotTables,
+} = require('../src')
 
 const OUT = path.join(__dirname, 'output')
 let passed = 0
@@ -224,6 +227,133 @@ async function main () {
     await assertValid(await baseWorkbook(), 'plain workbook')
   })
 
+
+  // ---------------------------------------------------------------- pivot tables
+
+  async function pivotSource () {
+    const wb = new ExcelJS.Workbook()
+    const src = wb.addWorksheet('Data')
+    src.addRow(['Region', 'Product', 'Sales'])
+    for (const row of [
+      ['East', 'Alpha', 100], ['East', 'Beta', 150], ['West', 'Alpha', 200],
+      ['West', 'Beta', 120], ['East', 'Alpha', 80], ['North', 'Beta', 60],
+    ]) src.addRow(row)
+    wb.addWorksheet('Pivot')
+    return Buffer.from(await wb.xlsx.writeBuffer())
+  }
+
+  const pivotSpec = (over = {}) => ({
+    sourceSheet: 'Data',
+    sourceRef: 'A1:C7',
+    targetSheet: 'Pivot',
+    anchor: 'A3',
+    rows: ['Region'],
+    columns: ['Product'],
+    values: [{ field: 'Sales', fn: 'sum' }],
+    ...over,
+  })
+
+  await test('a pivot table produces a valid package', async () => {
+    const out = await addPivotTable(await pivotSource(), pivotSpec())
+    await assertValid(out, 'pivot')
+    fs.writeFileSync(path.join(OUT, 'pivot.xlsx'), out)
+  })
+
+  await test('every pivot part is present and wired', async () => {
+    const zip = await JSZip.loadAsync(await addPivotTable(await pivotSource(), pivotSpec()))
+    for (const part of [
+      'xl/pivotCache/pivotCacheDefinition1.xml',
+      'xl/pivotCache/pivotCacheRecords1.xml',
+      'xl/pivotCache/_rels/pivotCacheDefinition1.xml.rels',
+      'xl/pivotTables/pivotTable1.xml',
+      'xl/pivotTables/_rels/pivotTable1.xml.rels',
+    ]) assert.ok(zip.file(part), `missing ${part}`)
+  })
+
+  await test('recordCount matches the records actually written', async () => {
+    const zip = await JSZip.loadAsync(await addPivotTable(await pivotSource(), pivotSpec()))
+    const def = await zip.file('xl/pivotCache/pivotCacheDefinition1.xml').async('string')
+    const rec = await zip.file('xl/pivotCache/pivotCacheRecords1.xml').async('string')
+    assert.strictEqual(Number(def.match(/recordCount="(\d+)"/)[1]), (rec.match(/<r>/g) || []).length)
+  })
+
+  await test('shared items are distinct and the declared count matches', async () => {
+    const zip = await JSZip.loadAsync(await addPivotTable(await pivotSource(), pivotSpec()))
+    const def = await zip.file('xl/pivotCache/pivotCacheDefinition1.xml').async('string')
+    const region = def.match(/name="Region"[\s\S]*?<\/cacheField>/)[0]
+    assert.strictEqual((region.match(/<s v="/g) || []).length, 3, 'East, West, North')
+    assert.ok(/count="3"/.test(region), 'sharedItems count must match the items listed')
+  })
+
+  await test('the cacheId is bound to a pivotCache in the workbook', async () => {
+    const zip = await JSZip.loadAsync(await addPivotTable(await pivotSource(), pivotSpec()))
+    const pt = await zip.file('xl/pivotTables/pivotTable1.xml').async('string')
+    const wb = await zip.file('xl/workbook.xml').async('string')
+    const id = pt.match(/cacheId="(\d+)"/)[1]
+    assert.ok(new RegExp(`<pivotCache[^>]*cacheId="${id}"`).test(wb), 'cacheId not declared')
+  })
+
+  await test('a pivot with no cache relationship is reported', async () => {
+    const zip = await JSZip.loadAsync(await addPivotTable(await pivotSource(), pivotSpec()))
+    zip.remove('xl/pivotTables/_rels/pivotTable1.xml.rels')
+    const result = await validate(await zip.generateAsync({ type: 'nodebuffer' }))
+    assert.ok(!result.valid, 'validator must not pass a pivot with no cache relationship')
+    assert.ok(result.errors.some(e => /pivotCacheDefinition/.test(e)), result.errors.join('; '))
+  })
+
+  await test('a pivot whose cacheId is undeclared is reported', async () => {
+    const zip = await JSZip.loadAsync(await addPivotTable(await pivotSource(), pivotSpec()))
+    const wb = await zip.file('xl/workbook.xml').async('string')
+    zip.file('xl/workbook.xml', wb.replace(/<pivotCaches>[\s\S]*?<\/pivotCaches>/, ''))
+    const result = await validate(await zip.generateAsync({ type: 'nodebuffer' }))
+    assert.ok(!result.valid, 'validator must not pass an unbound cacheId')
+  })
+
+  await test('charts and a pivot table coexist in one workbook', async () => {
+    let out = await addPivotTable(await pivotSource(), pivotSpec())
+    out = await addChart(out, {
+      type: 'bar',
+      title: 'Sales',
+      categories: "'Data'!$A$2:$A$7",
+      series: [{ nameRef: "'Data'!$C$1", ref: "'Data'!$C$2:$C$7" }],
+      sheet: 'Data',
+    })
+    await assertValid(out, 'chart plus pivot')
+    fs.writeFileSync(path.join(OUT, 'pivot-and-chart.xlsx'), out)
+  })
+
+  await test('two pivot tables in one workbook', async () => {
+    const out = await addPivotTables(await pivotSource(), [
+      pivotSpec(),
+      pivotSpec({ anchor: 'H3', name: 'PivotTable2', rows: ['Product'], columns: [] }),
+    ])
+    await assertValid(out, 'two pivots')
+    const zip = await JSZip.loadAsync(out)
+    assert.ok(zip.file('xl/pivotTables/pivotTable2.xml'), 'second pivot part missing')
+  })
+
+  await test('an unknown field name names the fields that do exist', async () => {
+    const src = await pivotSource()
+    await assert.rejects(() => addPivotTable(src, pivotSpec({ rows: ['Nope'] })),
+      /Nope[\s\S]*Region, Product, Sales/)
+  })
+
+  await test('an unknown aggregate is rejected', async () => {
+    const src = await pivotSource()
+    await assert.rejects(
+      () => addPivotTable(src, pivotSpec({ values: [{ field: 'Sales', fn: 'median' }] })),
+      /unknown aggregate/)
+  })
+
+  await test('a pivot with no rows and no columns is rejected', async () => {
+    const src = await pivotSource()
+    await assert.rejects(() => addPivotTable(src, pivotSpec({ rows: [], columns: [] })),
+      /at least one field in rows or columns/)
+  })
+
+  await test('a workbook with no pivot tables is still valid', async () => {
+    await assertValid(await pivotSource(), 'plain workbook with a spare sheet')
+  })
   console.log(`\n${passed} passed, ${failed} failed`)
   process.exit(failed ? 1 : 0)
 }

@@ -1,7 +1,7 @@
 {
   "name": "chartsheet",
-  "version": "0.1.1",
-  "description": "Native charts for Microsoft Excel .xlsx files built with ExcelJS or SheetJS — the chart support neither library has.",
+  "version": "0.2.0",
+  "description": "Write native Excel charts and pivot tables into .xlsx files built with ExcelJS or SheetJS",
   "keywords": [
     "excel",
     "excel-chart",
@@ -21,7 +21,12 @@
     "add chart to excel",
     "chart support",
     "xlsx writer",
-    "openxml"
+    "openxml",
+    "pivot",
+    "pivot-table",
+    "xlsx-pivot",
+    "excel-pivot",
+    "exceljs-pivot"
   ],
   "homepage": "https://ritusmoikaushik.github.io/chartsheet/",
   "repository": {

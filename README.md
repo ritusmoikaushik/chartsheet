@@ -80,6 +80,50 @@ const { addCharts } = require('chartsheet')
 buffer = await addCharts(buffer, [barSpec, lineSpec, pieSpec])
 ```
 
+## Pivot tables
+
+`exceljs` has no pivot table API. Support was merged into its master branch on 2023-10-31,
+twelve days after the last release, and has never been published — so `npm install exceljs`
+cannot give you one. `chartsheet` writes the pivot parts into the finished file.
+
+```js
+const { addPivotTable } = require('chartsheet')
+
+buffer = await addPivotTable(buffer, {
+  sourceSheet: 'Data',
+  sourceRef: 'A1:C500',      // include the header row
+  targetSheet: 'Report',     // must already exist
+  anchor: 'A3',
+  rows: ['Region'],
+  columns: ['Product'],
+  values: [{ field: 'Sales', fn: 'sum' }],
+})
+```
+
+| Option | Meaning |
+|---|---|
+| `sourceSheet` | Sheet holding the source table. Defaults to the first sheet |
+| `sourceRef` | Range including the header row, e.g. `'A1:C500'` |
+| `targetSheet` | Sheet the table is written to. Must exist |
+| `anchor` | Top-left cell of the table. Default `'A3'` |
+| `rows` / `columns` / `filters` | Field names, taken from the header row |
+| `values` | `['Sales']`, or `[{ field, fn, name }]` |
+| `name` | Table name. Default `'PivotTable1'` |
+
+`fn` is one of `sum`, `count`, `average`, `max`, `min`, `product`, `countNums`, `stdDev`,
+`stdDevp`, `var`, `varp`.
+
+`addPivotTables(buffer, [spec, spec])` writes several in one pass.
+
+The aggregation itself is left to Excel. The cache definition sets `refreshOnLoad`, so Excel
+rebuilds rows, columns and totals from the cached records when the file opens — the same
+division of labour the charts use, and far more robust than reimplementing Excel's own
+aggregation in JavaScript.
+
+`validate()` checks pivot wiring too: that `cacheId` resolves to a `<pivotCache>` in the
+workbook, that the table part relates to its cache definition, and that `recordCount` matches
+the records actually written. All three are silent failures otherwise.
+
 ## Validating a workbook
 
 Excel reports a damaged file only as *"we found a problem with some content"*, with no detail. This

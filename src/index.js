@@ -9,6 +9,7 @@ const {
 const { chartXml, validateSpec } = require('./chart-xml')
 const { validate } = require('./validate')
 const preserve = require('./preserve')
+const pivot = require('./pivot')
 
 const EMU_PER_PIXEL = 9525
 
@@ -89,6 +90,8 @@ module.exports = {
   addChart,
   addCharts,
   validate,
+  addPivotTable: pivot.addPivotTable,
+  addPivotTables: pivot.addPivotTables,
   captureCharts: preserve.captureCharts,
   restoreCharts: preserve.restoreCharts,
   preserveCharts: preserve.preserveCharts,

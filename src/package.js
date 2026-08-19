@@ -8,6 +8,7 @@ const NS = {
   rel: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
   sheetDrawing: 'http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing',
   pkgRel: 'http://schemas.openxmlformats.org/package/2006/relationships',
+  spreadsheet: 'http://schemas.openxmlformats.org/spreadsheetml/2006/main',
 }
 
 const CT = {

@@ -12,6 +12,9 @@ const RE = {
   attr: (tag, name) => (tag.match(new RegExp(`${name}="([^"]*)"`)) || [])[1],
   worksheet: /^xl\/worksheets\/sheet\d+\.xml$/,
   chartPart: /^xl\/charts\/chart\d+\.xml$/,
+  pivotPart: /^xl\/pivotTables\/pivotTable\d+\.xml$/,
+  cacheDefPart: /^xl\/pivotCache\/pivotCacheDefinition\d+\.xml$/,
+  cacheRecPart: /^xl\/pivotCache\/pivotCacheRecords\d+\.xml$/,
 }
 
 async function validate (workbook) {
@@ -47,6 +50,9 @@ async function validate (workbook) {
       [RE.chartPart, 'drawingml.chart+xml', 'chart'],
       [/^xl\/drawings\/drawing\d+\.xml$/, 'officedocument.drawing+xml', 'drawing'],
       [RE.worksheet, 'spreadsheetml.worksheet+xml', 'worksheet'],
+      [RE.pivotPart, 'spreadsheetml.pivotTable+xml', 'pivot table'],
+      [RE.cacheDefPart, 'spreadsheetml.pivotCacheDefinition+xml', 'pivot cache definition'],
+      [RE.cacheRecPart, 'spreadsheetml.pivotCacheRecords+xml', 'pivot cache records'],
     ]
     for (const name of names) {
       for (const [pattern, expected, label] of REQUIRED) {
@@ -145,6 +151,60 @@ async function validate (workbook) {
     if (/<(?!\/?[a-z]+:)[a-zA-Z]+[\s>]/.test(xml.replace(/<\?xml[^>]*\?>/, ''))) {
       errors.push(`${chartPath}: contains unprefixed elements; ` +
         'every element in a chart part must be namespaced')
+    }
+  }
+
+  // 5. pivot tables: cache wiring is what breaks, and it breaks silently
+  const pivotPaths = names.filter(n => RE.pivotPart.test(n))
+  if (pivotPaths.length) {
+    const workbookXml = await read('xl/workbook.xml')
+    const declaredCaches = new Set(
+      [...(workbookXml || '').matchAll(/<pivotCache\b[^>]*cacheId="(\d+)"/g)].map(m => m[1]))
+
+    for (const pivotPath of pivotPaths) {
+      const xml = await read(pivotPath)
+      if (!/<pivotTableDefinition\b/.test(xml)) {
+        errors.push(`${pivotPath}: root element is not <pivotTableDefinition>`)
+        continue
+      }
+      const cacheId = (xml.match(/\bcacheId="(\d+)"/) || [])[1]
+      if (!cacheId) {
+        errors.push(`${pivotPath}: no cacheId; Excel cannot bind the table to its data`)
+      } else if (!declaredCaches.has(cacheId)) {
+        errors.push(`${pivotPath}: cacheId ${cacheId} is not declared in ` +
+          '<pivotCaches> in xl/workbook.xml — the table has no cache to read')
+      }
+      if (!/<dataFields\b/.test(xml)) {
+        errors.push(`${pivotPath}: no <dataFields>; the table has nothing to aggregate`)
+      }
+      if (!/<rowFields\b/.test(xml) && !/<colFields\b/.test(xml)) {
+        errors.push(`${pivotPath}: neither <rowFields> nor <colFields>; the table is empty`)
+      }
+      // the table part must relate to its cache definition; cacheId alone is not enough
+      const rels = await read(relsPathFor(pivotPath))
+      if (!rels || !/pivotCacheDefinition/.test(rels)) {
+        errors.push(`${pivotPath}: no relationship to a pivotCacheDefinition part — ` +
+          'Excel reports a problem with the content')
+      }
+    }
+  }
+
+  // cache records must match what the definition claims, or Excel silently drops rows
+  for (const defPath of names.filter(n => RE.cacheDefPart.test(n))) {
+    const xml = await read(defPath)
+    const claimed = (xml.match(/recordCount="(\d+)"/) || [])[1]
+    const relTarget = await read(relsPathFor(defPath))
+    if (!relTarget || !/pivotCacheRecords/.test(relTarget)) {
+      errors.push(`${defPath}: no relationship to a pivotCacheRecords part`)
+      continue
+    }
+    const recPath = names.find(n => RE.cacheRecPart.test(n))
+    if (recPath && claimed != null) {
+      const actual = ((await read(recPath)).match(/<r>/g) || []).length
+      if (Number(claimed) !== actual) {
+        errors.push(`${defPath}: recordCount="${claimed}" but ${recPath} holds ` +
+          `${actual} records — Excel will show the wrong totals`)
+      }
     }
   }
 
