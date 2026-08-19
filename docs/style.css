@@ -55,7 +55,17 @@ header.site .wrap {
 header.site a.brand {
   font-weight: 700; font-size: 1.05rem; letter-spacing: -0.01em;
   color: var(--ink); text-decoration: none;
+  display: inline-flex; align-items: center; gap: 0.55rem;
 }
+/* the mark takes its body colour from the link, so it follows the theme */
+header.site a.brand .mark {
+  color: var(--accent);
+  flex: none;
+  border-radius: 7px;
+  transition: transform .12s ease;
+}
+header.site a.brand:hover .mark { transform: translateY(-1px) rotate(-2deg); }
+header.site .wrap { align-items: center; }
 header.site nav { display: flex; gap: 1.1rem; flex-wrap: wrap; }
 header.site nav a {
   color: var(--ink-soft); text-decoration: none; font-size: 0.92rem;
