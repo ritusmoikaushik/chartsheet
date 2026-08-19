@@ -401,6 +401,31 @@ async function main () {
     const result = await validate(await zip.generateAsync({ type: 'nodebuffer' }))
     assert.ok(!result.valid, 'reordering must not blind the validator to real defects')
   })
+
+  await test('pivot tables work on SheetJS output, not just ExcelJS', async () => {
+    const XLSX = require('xlsx')
+    const rows = [['Region', 'Product', 'Sales']]
+    for (const r of ['East', 'West', 'North']) {
+      for (const p of ['Alpha', 'Beta']) rows.push([r, p, 100 + rows.length * 7])
+    }
+    const book = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet(rows), 'Data')
+    XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([[]]), 'Report')
+
+    const out = await addPivotTable(XLSX.write(book, { type: 'buffer', bookType: 'xlsx' }), {
+      sourceSheet: 'Data', sourceRef: 'A1:C7', targetSheet: 'Report', anchor: 'A3',
+      rows: ['Region'], columns: ['Product'], values: [{ field: 'Sales', fn: 'sum' }],
+    })
+    await assertValid(out, 'pivot on SheetJS output')
+
+    // the cache has to hold the values SheetJS wrote, however it stored them
+    const zip = await JSZip.loadAsync(out)
+    const def = await zip.file('xl/pivotCache/pivotCacheDefinition1.xml').async('string')
+    for (const value of ['East', 'West', 'North', 'Alpha', 'Beta']) {
+      assert.ok(def.includes(`<s v="${value}"/>`), `cache is missing ${value}`)
+    }
+    assert.strictEqual(Number(def.match(/recordCount="(\d+)"/)[1]), 6)
+  })
   console.log(`\n${passed} passed, ${failed} failed`)
   process.exit(failed ? 1 : 0)
 }

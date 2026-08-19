@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="google-site-verification" content="u4Wa5s3wTJRt0BQYixUTRUOCkDLO4ASa2jwK_Bt_FXw">
+<title>How to add a pivot table with SheetJS — native .xlsx pivot tables in Node.js</title>
+<meta name="description" content="SheetJS cannot create pivot tables — not in the Community Edition, and Pro does not list pivot creation either. Here is how to write a real one into a workbook SheetJS produced.">
+<link rel="canonical" href="https://ritusmoikaushik.github.io/chartsheet/sheetjs-pivot-table.html">
+<meta property="og:title" content="How to add a pivot table with SheetJS">
+<meta property="og:description" content="SheetJS has no pivot table API. Here is how to write one into the file anyway.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#1d6b4f">
+<link rel="stylesheet" href="style.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"Can SheetJS create pivot tables?",
+"acceptedAnswer":{"@type":"Answer","text":"No. The Community Edition has no pivot table API, and the Pro product line does not list pivot table creation either — its published builds cover styling, images, charts and editing. A pivot table can be written into the finished file instead, because the pivot parts are self-contained in the xlsx package."}},
+{"@type":"Question","name":"Does xlsx.utils have a pivot table helper?",
+"acceptedAnswer":{"@type":"Answer","text":"No. XLSX.utils covers converting between sheets and JavaScript data — aoa_to_sheet, json_to_sheet, sheet_to_json and similar. There is no pivot table function in any released version."}},
+{"@type":"Question","name":"Is it a real pivot table or a grid of pre-computed cells?",
+"acceptedAnswer":{"@type":"Answer","text":"A real, native Excel pivot table with a pivot cache. The fields can be changed, the table refreshed, rows expanded and collapsed. Excel computes the aggregation itself from the cached records when the file opens."}},
+{"@type":"Question","name":"Why is the xlsx package on npm stuck at 0.18.5?",
+"acceptedAnswer":{"@type":"Answer","text":"SheetJS moved distribution to its own CDN and stopped publishing to npm after 0.18.5 in March 2022. The npm package is not marked deprecated, so nothing warns you. Adding a pivot table works on output from any version, and on output from the community republishes as well."}}]}
+</script>
+</head>
+<body>
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="./"><svg class="mark" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true" focusable="false"><rect width="32" height="32" rx="7" fill="currentColor"/><rect x="6.5" y="17" width="4.5" height="8.5" rx="1.2" fill="#fff" opacity=".62"/><rect x="13.75" y="12" width="4.5" height="13.5" rx="1.2" fill="#fff" opacity=".82"/><rect x="21" y="6.5" width="4.5" height="19" rx="1.2" fill="#fff"/></svg><span>chartsheet</span></a>
+    <nav>
+      <a href="exceljs-chart.html">ExcelJS</a>
+      <a href="exceljs-pivot-table.html">Pivot tables</a>
+      <a href="sheetjs-chart.html">SheetJS</a>
+      <a href="charts-disappearing.html">Charts disappearing</a>
+      <a href="xlsx-validator.html">Validator</a>
+      <a href="api.html">API</a>
+      <a href="https://github.com/ritusmoikaushik/chartsheet">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>How to add a pivot table with SheetJS</h1>
+  <p class="lede">There is no pivot table function in <code>XLSX.utils</code>, and there is no
+  paid build that adds one. The parts can be written into the finished file instead.</p>
+
+  <div class="answer">
+    <p><strong>Short answer.</strong> SheetJS Community has no pivot table API. Its Pro builds cover
+    styling, images, charts and editing — <strong>pivot table creation is not among them</strong>.
+    Write the workbook with SheetJS as you do now, then pass the buffer through
+    <code>addPivotTable</code>, which adds the pivot cache and table parts the format requires.</p>
+  </div>
+
+  <div class="install">npm install chartsheet</div>
+
+  <h2>A pivot table from a sheet of data</h2>
+  <pre><code>const fs = require('fs')
+const XLSX = require('xlsx')
+const { addPivotTable } = require('chartsheet')
+
+async function main () {
+  const rows = [
+    ['Region', 'Product', 'Sales'],
+    ['East', 'Alpha', 100],
+    ['East', 'Beta', 150],
+    ['West', 'Alpha', 200],
+    ['West', 'Beta', 120],
+    ['North', 'Alpha', 90],
+    ['North', 'Beta', 175],
+  ]
+
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Data')
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([[]]), 'Report')
+
+  let buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
+
+  buffer = await addPivotTable(buffer, {
+    sourceSheet: 'Data',
+    sourceRef: 'A1:C7',        // include the header row
+    targetSheet: 'Report',
+    anchor: 'A3',
+    rows: ['Region'],
+    columns: ['Product'],
+    values: [{ field: 'Sales', fn: 'sum' }],
+  })
+
+  fs.writeFileSync('report.xlsx', buffer)
+}
+
+main()</code></pre>
+
+  <p>The <code>Report</code> sheet has to exist before the pivot table is written to it, which is
+  what the empty <code>aoa_to_sheet([[]])</code> is for. Open the file and the table is live: click
+  it and the field list appears, drag fields around, refresh it.</p>
+
+  <h2>The field names come from your header row</h2>
+  <p><code>rows</code>, <code>columns</code>, <code>filters</code> and each
+  <code>values[].field</code> are matched against the first row of <code>sourceRef</code>. Name one
+  that is not there and the error lists the names that are, rather than producing a broken file:</p>
+  <pre><code>Error: field "Revenue" is not a column of the source range
+       (found: Region, Product, Sales)</code></pre>
+
+  <h2>Aggregates</h2>
+  <p><code>fn</code> defaults to <code>sum</code>. The full set is <code>sum</code>,
+  <code>count</code>, <code>average</code>, <code>max</code>, <code>min</code>,
+  <code>product</code>, <code>countNums</code>, <code>stdDev</code>, <code>stdDevp</code>,
+  <code>var</code> and <code>varp</code> — the same list Excel offers in the value field settings.</p>
+  <pre><code>values: [
+  { field: 'Sales', fn: 'sum' },
+  { field: 'Sales', fn: 'average', name: 'Average order' },
+]</code></pre>
+  <p>The same field can appear more than once with different aggregates, as it can in Excel.</p>
+
+  <h2>Charts too</h2>
+  <p>SheetJS keeps chart writing in its paid tier. Charts and pivot tables are separate parts and do
+  not collide, so both can go into the same file:</p>
+  <pre><code>const { addChart, addPivotTable } = require('chartsheet')
+
+buffer = await addPivotTable(buffer, pivotSpec)
+buffer = await addChart(buffer, chartSpec)</code></pre>
+  <p><a href="sheetjs-chart.html">Adding a chart with SheetJS</a> covers the chart side.</p>
+
+  <h2>Which version of SheetJS</h2>
+  <p>Any of them. The pivot parts are written into the finished bytes, so it does not matter which
+  build produced them.</p>
+  <p>Worth knowing if you install from npm: <code>xlsx</code> there stops at <strong>0.18.5,
+  published in March 2022</strong>. SheetJS moved distribution to its own CDN and the npm package
+  carries no deprecation notice, so nothing tells you. <code>npm audit</code> reports that version as
+  high severity with <code>fixAvailable: false</code>. This library works the same on output from
+  0.18.5, from the current CDN builds, and from the community republishes.</p>
+
+  <h2>Checking the result</h2>
+  <pre><code>const { validate } = require('chartsheet')
+
+const result = await validate(buffer)
+if (!result.valid) console.error(result.errors)</code></pre>
+  <p>Pivot wiring fails silently: an unbound <code>cacheId</code>, a table part with no relationship
+  to its cache, a <code>recordCount</code> that disagrees with the records written. Excel reports all
+  three as <em>“we found a problem with some content”</em> and nothing more.
+  <a href="xlsx-validator.html">There is a page that checks a file in the browser</a>.</p>
+
+  <div class="faq">
+    <h2>Questions</h2>
+
+    <h3>Does <code>XLSX.utils</code> have a pivot table helper?</h3>
+    <p>No. <code>XLSX.utils</code> converts between sheets and JavaScript data —
+    <code>aoa_to_sheet</code>, <code>json_to_sheet</code>, <code>sheet_to_json</code> and friends.
+    There is no pivot function in any released version.</p>
+
+    <h3>Would SheetJS Pro give me one?</h3>
+    <p>Its published builds are styling, images, charts and editing. Pivot table creation is not
+    listed among them, and no price is published for any of it.</p>
+
+    <h3>Is this a real pivot table?</h3>
+    <p>Yes — a native table backed by a pivot cache. Excel computes the aggregation itself from the
+    cached records when the file opens, which is why the numbers are right even though this library
+    never adds anything up.</p>
+
+    <h3>Does it work in the browser?</h3>
+    <p>Yes. It takes and returns bytes, so a <code>Uint8Array</code> or <code>ArrayBuffer</code> from
+    <code>XLSX.write</code> works the same as a Node <code>Buffer</code>.</p>
+
+    <h3>Can I put the pivot table on the same sheet as the data?</h3>
+    <p>You can, but do not. Excel expands a pivot table over whatever is beneath it, and the source
+    rows are the last thing you want overwritten. Give it its own sheet.</p>
+  </div>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <p>MIT licensed. <a href="https://github.com/ritusmoikaushik/chartsheet">Source on GitHub</a>.
+    Microsoft and Excel are trademarks of Microsoft Corporation; this project is not affiliated with
+    or endorsed by Microsoft.</p>
+  </div>
+</footer>
+</body>
+</html>

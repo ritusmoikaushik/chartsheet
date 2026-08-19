@@ -122,6 +122,9 @@ const original = fs.readFileSync('template.xlsx')  // has charts
 // ... ExcelJS loads it, edits it, writes `rewritten` — charts gone ...
 const output = await preserveCharts(original, rewritten)   // and back again</code></pre>
 
+  <p><a href="exceljs-pivot-table.html">Pivot tables with ExcelJS</a> ·
+  <a href="sheetjs-pivot-table.html">with SheetJS</a></p>
+
   <h2>Tell me why Excel won't open my file</h2>
   <p>Excel reports a damaged workbook as <em>"we found a problem with some content"</em> and never
   says which part. The built-in validator does:</p>
