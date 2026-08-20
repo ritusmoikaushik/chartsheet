@@ -27,6 +27,8 @@
 "acceptedAnswer":{"@type":"Answer","text":"Because the code that adds it was never released. The last ExcelJS release, 4.4.0, was published on 19 October 2023 and the pivot table commit landed on 31 October 2023. Installing from npm gives you the released version, which has no pivot support."}},
 {"@type":"Question","name":"Is it a real pivot table or a static range of cells?",
 "acceptedAnswer":{"@type":"Answer","text":"A real, native Excel pivot table with a pivot cache. You can change the fields, expand and collapse it, and refresh it, exactly as with one built by hand in Excel."}},
+{"@type":"Question","name":"Why does my pivot table disappear when ExcelJS saves the file?",
+"acceptedAnswer":{"@type":"Answer","text":"Because ExcelJS never writes it. It models no pivot part, so loading a workbook and writing it back drops the pivot tables, their caches and the workbook's pivotCaches entry, with no error. Capture the parts from the original file and restore them onto the output."}},
 {"@type":"Question","name":"Does the pivot table work with SheetJS output too?",
 "acceptedAnswer":{"@type":"Answer","text":"Yes. The pivot parts are written into a finished .xlsx buffer, so anything producing valid xlsx output works, including SheetJS."}}]}
 </script>
@@ -134,6 +136,33 @@ buffer = await addPivotTables(buffer, [
     rows: ['Quarter'], values: [{ field: 'Sales', fn: 'average' }] },
 ])</code></pre>
 
+  <h2>Keeping a pivot table you already have</h2>
+  <p>The opposite problem, and the older one. Load a workbook that already has a pivot table, edit a
+  cell, write it back, and the pivot is gone —
+  <a href="https://github.com/exceljs/exceljs/issues/261">reported in 2017</a> and still open.
+  ExcelJS models no pivot part, so it keeps only what it recognises and writes a file that never had
+  one. Nothing is corrupt, which is why there is no error.</p>
+
+  <pre><code>const { preservePivotTables } = require('chartsheet')
+
+const original = fs.readFileSync('report.xlsx')     // has a pivot table
+
+const wb = new ExcelJS.Workbook()
+await wb.xlsx.load(original)
+wb.getWorksheet('Data').getCell('C2').value = 999
+const rewritten = await wb.xlsx.writeBuffer()       // pivot is gone here
+
+const output = await preservePivotTables(original, rewritten)</code></pre>
+
+  <p>You do not need to know how the pivot was laid out — the parts come off the original as they
+  are. The restored cache is marked <code>refreshOnLoad</code>, so Excel recomputes the totals from
+  the sheet as it opens, rather than showing the figures captured before your edit.</p>
+
+  <p>Charts go the same way on a read-write cycle, and most real templates have both:</p>
+
+  <pre><code>const { preserveAll } = require('chartsheet')
+const output = await preserveAll(original, rewritten)</code></pre>
+
   <h2>If you would rather write the parts yourself</h2>
   <p>A pivot table is four things in the package, and each one is a silent failure if you get it
   wrong — Excel says only <em>“we found a problem with some content”</em>.</p>
@@ -189,6 +218,11 @@ console.log(result.valid, result.errors)</code></pre>
     <h3>Does it work with SheetJS?</h3>
     <p>Yes. The parts are written into a finished <code>.xlsx</code> buffer, so anything producing
     valid xlsx output works.</p>
+
+    <h3>My pivot table disappears when ExcelJS saves the file. Why?</h3>
+    <p>Because ExcelJS never wrote it. It models no pivot part, so a load-edit-save cycle drops the
+    pivot tables, their caches and the workbook's <code>&lt;pivotCaches&gt;</code> entry, with no
+    error. <code>preservePivotTables</code> lifts them off the original and puts them back.</p>
 
     <h3>Can I have a chart and a pivot table in the same workbook?</h3>
     <p>Yes. Pass the buffer through both — <a href="exceljs-chart.html">charts</a> and pivot tables

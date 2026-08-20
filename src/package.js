@@ -14,6 +14,12 @@ const NS = {
 const CT = {
   drawing: 'application/vnd.openxmlformats-officedocument.drawing+xml',
   chart: 'application/vnd.openxmlformats-officedocument.drawingml.chart+xml',
+  pivotCacheDef:
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.pivotCacheDefinition+xml',
+  pivotCacheRec:
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.pivotCacheRecords+xml',
+  pivotTable:
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.pivotTable+xml',
 }
 
 const escapeXml = value => String(value)
@@ -139,6 +145,42 @@ async function ensureDrawing (zip, sheetPath) {
   return { path }
 }
 
+/**
+ * Bind a pivot cache definition to the workbook: a relationship, plus the
+ * <pivotCaches> entry that gives the cache the id every pivot table refers to.
+ *
+ * Both halves are required. A cache part with no entry here is invisible to Excel,
+ * and a table whose cacheId is undeclared makes Excel offer to repair the file.
+ *
+ * @returns {Promise<{cacheId: number, relId: string}>}
+ */
+async function declarePivotCache (zip, cacheDefTarget) {
+  const relsPath = 'xl/_rels/workbook.xml.rels'
+  let rels = await readPart(zip, relsPath, EMPTY_RELS)
+  const relId = nextRelId(rels)
+  rels = addRelationship(rels, relId, 'pivotCacheDefinition', cacheDefTarget)
+  zip.file(relsPath, rels)
+
+  const workbookXml = await readPart(zip, 'xl/workbook.xml')
+  const used = [...workbookXml.matchAll(/cacheId="(\d+)"/g)].map(m => Number(m[1]))
+  const cacheId = (used.length ? Math.max(...used) : 0) + 1
+  const entry = `<pivotCache cacheId="${cacheId}" r:id="${relId}"/>`
+
+  let next
+  if (/<pivotCaches>/.test(workbookXml)) {
+    next = workbookXml.replace('</pivotCaches>', `${entry}</pivotCaches>`)
+  } else {
+    // pivotCaches sits late in the CT_Workbook sequence, but ahead of extLst
+    const block = `<pivotCaches>${entry}</pivotCaches>`
+    next = /<extLst\b/.test(workbookXml)
+      ? workbookXml.replace(/<extLst\b/, `${block}<extLst`)
+      : workbookXml.replace('</workbook>', `${block}</workbook>`)
+  }
+  zip.file('xl/workbook.xml', next)
+
+  return { cacheId, relId }
+}
+
 async function declareContentType (zip, partName, contentType) {
   const path = '[Content_Types].xml'
   let xml = await readPart(zip, path)
@@ -150,5 +192,5 @@ async function declareContentType (zip, partName, contentType) {
 module.exports = {
   NS, CT, EMPTY_RELS,
   escapeXml, resolveTarget, relsPathFor, nextRelId, addRelationship, findRelTarget,
-  readPart, resolveSheetPath, ensureDrawing, declareContentType,
+  readPart, resolveSheetPath, ensureDrawing, declareContentType, declarePivotCache,
 }

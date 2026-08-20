@@ -10,6 +10,7 @@ const {
 const { chartXml, validateSpec } = require('./chart-xml')
 const { validate } = require('./validate')
 const preserve = require('./preserve')
+const preservePivot = require('./preserve-pivot')
 const pivot = require('./pivot')
 
 const EMU_PER_PIXEL = 9525
@@ -87,6 +88,15 @@ async function addCharts (workbook, specs) {
   return out
 }
 
+/**
+ * Carry both the charts and the pivot tables from `original` onto `rewritten`.
+ * ExcelJS drops both on a read-write cycle, and most real templates have both.
+ */
+async function preserveAll (original, rewritten) {
+  const withCharts = await preserve.preserveCharts(original, rewritten)
+  return preservePivot.preservePivotTables(original, withCharts)
+}
+
 module.exports = {
   addChart,
   addCharts,
@@ -97,4 +107,9 @@ module.exports = {
   restoreCharts: preserve.restoreCharts,
   preserveCharts: preserve.preserveCharts,
   chartCount: preserve.chartCount,
+  capturePivotTables: preservePivot.capturePivotTables,
+  restorePivotTables: preservePivot.restorePivotTables,
+  preservePivotTables: preservePivot.preservePivotTables,
+  pivotTableCount: preservePivot.pivotTableCount,
+  preserveAll,
 }

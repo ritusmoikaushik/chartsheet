@@ -10,6 +10,8 @@ const JSZip = require('jszip')
 const {
   addChart, addCharts, validate, captureCharts, restoreCharts, chartCount,
   addPivotTable, addPivotTables,
+  capturePivotTables, restorePivotTables, preservePivotTables, pivotTableCount,
+  preserveAll,
 } = require('../src')
 
 const OUT = path.join(__dirname, 'output')
@@ -353,6 +355,104 @@ async function main () {
 
   await test('a workbook with no pivot tables is still valid', async () => {
     await assertValid(await pivotSource(), 'plain workbook with a spare sheet')
+  })
+
+  // ---------------------------------------------- pivot tables across a read-write
+
+  await test('ExcelJS destroys pivot tables on read-write, and we put them back', async () => {
+    const original = await addPivotTable(await pivotSource(), pivotSpec())
+    assert.strictEqual(pivotTableCount(await capturePivotTables(original)), 1,
+      'template should have a pivot')
+
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(original)
+    wb.getWorksheet('Data').getCell('C2').value = 999
+    const rewritten = Buffer.from(await wb.xlsx.writeBuffer())
+    assert.strictEqual(pivotTableCount(await capturePivotTables(rewritten)), 0,
+      'ExcelJS is expected to drop the pivot — if this fails, ExcelJS fixed the bug')
+
+    const restored = await restorePivotTables(rewritten, await capturePivotTables(original))
+    assert.strictEqual(pivotTableCount(await capturePivotTables(restored)), 1,
+      'pivot should be back')
+    await assertValid(restored, 'restored pivot')
+
+    const check = new ExcelJS.Workbook()
+    await check.xlsx.load(restored)
+    assert.strictEqual(check.getWorksheet('Data').getCell('C2').value, 999,
+      'the edit must survive alongside the pivot')
+    fs.writeFileSync(path.join(OUT, 'preserved-pivot.xlsx'), restored)
+  })
+
+  await test('a restored pivot rebuilds its totals when the file opens', async () => {
+    const original = await addPivotTable(await pivotSource(), pivotSpec())
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(original)
+    const restored = await preservePivotTables(
+      original, Buffer.from(await wb.xlsx.writeBuffer()))
+    const zip = await JSZip.loadAsync(restored)
+    const def = await zip.file('xl/pivotCache/pivotCacheDefinition1.xml').async('string')
+    assert.ok(/refreshOnLoad="1"/.test(def),
+      'records captured before the edit are stale; Excel must refresh them')
+  })
+
+  await test('two pivot tables and their caches survive the round trip', async () => {
+    const original = await addPivotTables(await pivotSource(), [
+      pivotSpec(),
+      pivotSpec({ anchor: 'H3', name: 'PivotTable2', rows: ['Product'], columns: [] }),
+    ])
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(original)
+    const restored = await preservePivotTables(
+      original, Buffer.from(await wb.xlsx.writeBuffer()))
+    await assertValid(restored, 'two restored pivots')
+    assert.strictEqual(pivotTableCount(await capturePivotTables(restored)), 2)
+
+    const zip = await JSZip.loadAsync(restored)
+    const wbXml = await zip.file('xl/workbook.xml').async('string')
+    const ids = [...wbXml.matchAll(/<pivotCache\b[^>]*cacheId="(\d+)"/g)].map(m => m[1])
+    assert.strictEqual(new Set(ids).size, 2, 'each cache needs an id of its own')
+  })
+
+  await test('restoring pivots onto a renamed sheet skips safely', async () => {
+    const record = await capturePivotTables(
+      await addPivotTable(await pivotSource(), pivotSpec()))
+    const wb = new ExcelJS.Workbook()
+    wb.addWorksheet('Data')
+    wb.addWorksheet('Elsewhere')
+    const out = await restorePivotTables(Buffer.from(await wb.xlsx.writeBuffer()), record)
+    await assertValid(out, 'renamed pivot sheet')
+    assert.strictEqual(pivotTableCount(await capturePivotTables(out)), 0,
+      'nothing to restore onto')
+  })
+
+  await test('a cache never overwrites the worksheet it was built from', async () => {
+    const original = await addPivotTable(await pivotSource(), pivotSpec())
+    const record = await capturePivotTables(original)
+    for (const cache of record.caches) {
+      for (const part of cache.parts) {
+        assert.ok(part.path.startsWith('xl/pivotCache/'),
+          `captured ${part.path}, which is not part of the cache`)
+      }
+    }
+  })
+
+  await test('preserveAll carries charts and pivot tables together', async () => {
+    let original = await addPivotTable(await pivotSource(), pivotSpec())
+    original = await addChart(original, {
+      type: 'bar',
+      categories: "'Data'!$A$2:$A$7",
+      series: [{ nameRef: "'Data'!$C$1", ref: "'Data'!$C$2:$C$7" }],
+    })
+
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(original)
+    wb.getWorksheet('Data').getCell('C2').value = 555
+    const out = await preserveAll(original, Buffer.from(await wb.xlsx.writeBuffer()))
+
+    await assertValid(out, 'preserveAll')
+    assert.strictEqual(chartCount(await captureCharts(out)), 1, 'chart was lost')
+    assert.strictEqual(pivotTableCount(await capturePivotTables(out)), 1, 'pivot was lost')
+    fs.writeFileSync(path.join(OUT, 'preserved-all.xlsx'), out)
   })
 
   // ------------------------------------------- producer-independent attribute order

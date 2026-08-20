@@ -203,6 +203,41 @@ const output = await restoreCharts(rewritten, record)
 Sheets are matched by **name**, so charts land back where they belong even if sheet order changed.
 A sheet that was renamed or removed is skipped rather than guessed at.
 
+## Keeping pivot tables through a read-write cycle
+
+The same hole, and the oldest open issue about it — [ExcelJS #261][261], filed 2017. Load a workbook
+that has a pivot table, write it back, and the pivot tables, their caches and the workbook's
+`<pivotCaches>` entry are all gone. Nothing is corrupt; they were never written, so there is no
+error to catch.
+
+```js
+const { preservePivotTables } = require('chartsheet')
+
+const original = fs.readFileSync('report.xlsx')     // has a pivot table
+
+const wb = new ExcelJS.Workbook()
+await wb.xlsx.load(original)
+wb.getWorksheet('Data').getCell('C2').value = 999
+const rewritten = await wb.xlsx.writeBuffer()       // pivot is gone here
+
+const output = await preservePivotTables(original, rewritten)
+```
+
+`capturePivotTables` / `restorePivotTables` split it in two, the same way the chart pair does.
+
+The restored cache is marked `refreshOnLoad`, so Excel recomputes every total from the sheet as it
+opens the file. The records captured off the original describe the data *before* your edit, and a
+pivot showing yesterday's numbers is worse than one that takes a moment to redraw.
+
+Most real templates have both, so there is one call that does both:
+
+```js
+const { preserveAll } = require('chartsheet')
+const output = await preserveAll(original, rewritten)   // charts and pivot tables
+```
+
+[261]: https://github.com/exceljs/exceljs/issues/261
+
 ## Licence
 
 MIT

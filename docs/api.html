@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="google-site-verification" content="u4Wa5s3wTJRt0BQYixUTRUOCkDLO4ASa2jwK_Bt_FXw">
 <title>chartsheet API reference — addChart, addPivotTable, preserveCharts, validate</title>
-<meta name="description" content="Full API reference for chartsheet: addChart, addPivotTable, captureCharts, restoreCharts, preserveCharts and validate. Every chart type, pivot option and validator rule.">
+<meta name="description" content="Full API reference for chartsheet: addChart, addPivotTable, captureCharts, restoreCharts, preserveCharts, preservePivotTables, preserveAll and validate. Every chart type, pivot option and validator rule.">
 <link rel="canonical" href="https://ritusmoikaushik.github.io/chartsheet/api.html">
 <meta property="og:image" content="https://ritusmoikaushik.github.io/chartsheet/img/excel-chart-screenshot.png">
 <meta property="og:image:width" content="937">
@@ -138,6 +138,26 @@
   <p>Convenience wrapper for the pair above — carry the charts from <code>original</code> onto
   <code>rewritten</code>. <a href="charts-disappearing.html">Why you need this</a>.</p>
 
+  <h2>capturePivotTables(workbook)</h2>
+  <p>Reads every pivot table on every sheet, with the cache definition and records behind each one.
+  A table is found through its worksheet's relationships, not through the sheet XML, and it reaches
+  its cache the same way. Returns a plain serialisable record.</p>
+
+  <h2>restorePivotTables(workbook, record)</h2>
+  <p>Writes captured pivot tables back, matching sheets by <strong>name</strong>, renumbering the
+  cache parts so nothing collides and re-declaring each cache in <code>&lt;pivotCaches&gt;</code>
+  with a fresh id. Restored caches are marked <code>refreshOnLoad</code>, so Excel rebuilds every
+  total from the sheet as the file opens rather than showing figures captured before your edit.
+  Sheets that were renamed, removed, or already carry a pivot are skipped.</p>
+
+  <h2>preservePivotTables(original, rewritten)</h2>
+  <p>Convenience wrapper for the pair above. Answers
+  <a href="https://github.com/exceljs/exceljs/issues/261">ExcelJS #261</a>, open since 2017.</p>
+
+  <h2>preserveAll(original, rewritten)</h2>
+  <p>Charts and pivot tables in one call. ExcelJS drops both, and most real templates have both.</p>
+  <pre><code>const output = await preserveAll(original, rewritten)</code></pre>
+
   <h2>validate(workbook)</h2>
   <p>Checks the package for the defects that make Excel refuse a file. Returns
   <code>{ valid, errors, warnings }</code>. Works on any <code>.xlsx</code>.</p>
@@ -154,6 +174,9 @@
     <li>duplicate <code>cNvPr</code> shape ids within a drawing</li>
     <li>chart parts with no series, or with unprefixed elements</li>
   </ul>
+
+  <h2>pivotTableCount(record)</h2>
+  <p>Number of pivot tables in a record from <code>capturePivotTables</code>. Useful in tests.</p>
 
   <h2>chartCount(record)</h2>
   <p>Number of charts in a record from <code>captureCharts</code>. Useful in tests.</p>
