@@ -73,9 +73,14 @@
     <li><strong>Relationships pointing at nothing</strong> — an <code>r:id</code> whose target part
       is not in the package.</li>
     <li><strong>Orphaned parts</strong> — a drawing or chart nothing refers to.</li>
-    <li><strong>A <code>&lt;drawing&gt;</code> in the wrong place.</strong> It must be the last child
-      of <code>&lt;worksheet&gt;</code>, after <code>&lt;/sheetData&gt;</code>, and there may be only
-      one per sheet.</li>
+    <li><strong>A <code>&lt;drawing&gt;</code> in the wrong place.</strong> It comes after
+      <code>&lt;/sheetData&gt;</code> but it is not last: <code>&lt;tableParts&gt;</code>,
+      <code>&lt;legacyDrawing&gt;</code>, <code>&lt;picture&gt;</code> and
+      <code>&lt;extLst&gt;</code> all follow it. There may be only one per sheet.</li>
+    <li><strong>Two table columns with the same name.</strong> Excel compares them
+      case-insensitively, so <code>Sales</code> and <code>sales</code> collide — and the recovery
+      log blames the worksheet, not the table. Also a <code>ref</code> that is a different width
+      from the number of columns declared.</li>
     <li><strong>Duplicate shape ids</strong> within one drawing part.</li>
     <li><strong>Charts with no series</strong>, or with unprefixed elements — every element in a
       chart part must carry its namespace prefix.</li>
