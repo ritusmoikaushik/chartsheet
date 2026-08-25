@@ -15,6 +15,7 @@ const RE = {
   pivotPart: /^xl\/pivotTables\/pivotTable\d+\.xml$/,
   cacheDefPart: /^xl\/pivotCache\/pivotCacheDefinition\d+\.xml$/,
   cacheRecPart: /^xl\/pivotCache\/pivotCacheRecords\d+\.xml$/,
+  tablePart: /^xl\/tables\/table\d+\.xml$/,
 }
 
 const AFTER_DRAWING = [
@@ -184,7 +185,38 @@ async function validate (workbook) {
     }
   }
 
-  // 4. chart parts carry at least one series and real cell references
+  // 4. table parts: duplicate column names are the commonest cause of
+  //    "Repaired Records: Cell information from /xl/worksheets/sheetN.xml"
+  for (const tablePath of names.filter(n => RE.tablePart.test(n))) {
+    const xml = await read(tablePath)
+    const columns = [...xml.matchAll(/<tableColumn\b[^>]*\bname="([^"]*)"/g)].map(m => m[1])
+
+    const seen = new Map()
+    for (const name of columns) {
+      const key = name.trim().toLowerCase()
+      if (seen.has(key)) {
+        errors.push(`${tablePath}: two columns are both named "${name}"; ` +
+          'Excel requires table column names to be unique and repairs the file otherwise')
+      }
+      seen.set(key, name)
+    }
+    if (columns.some(name => !name.trim())) {
+      errors.push(`${tablePath}: a column has an empty name; Excel repairs the file`)
+    }
+
+    const ref = (xml.match(/<table\b[^>]*\bref="([^"]+)"/) || [])[1]
+    const span = ref && ref.match(/^([A-Z]+)\d+:([A-Z]+)\d+$/)
+    if (span && columns.length) {
+      const column = letters => [...letters].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0)
+      const width = column(span[2]) - column(span[1]) + 1
+      if (width !== columns.length) {
+        errors.push(`${tablePath}: ref="${ref}" is ${width} columns wide but ` +
+          `${columns.length} <tableColumn> entries are declared`)
+      }
+    }
+  }
+
+  // 5. chart parts carry at least one series and real cell references
   for (const chartPath of names.filter(n => RE.chartPart.test(n))) {
     const xml = await read(chartPath)
     if (!/<c:chartSpace\b/.test(xml)) {
@@ -199,7 +231,7 @@ async function validate (workbook) {
     }
   }
 
-  // 5. pivot tables: cache wiring is what breaks, and it breaks silently
+  // 6. pivot tables: cache wiring is what breaks, and it breaks silently
   const pivotPaths = names.filter(n => RE.pivotPart.test(n))
   if (pivotPaths.length) {
     const workbookXml = await read('xl/workbook.xml')

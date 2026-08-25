@@ -583,6 +583,31 @@ async function main () {
       'wrong error: ' + result.errors.join(' | '))
   })
 
+
+  // The single commonest report on exceljs#106 is a repaired file whose table has two
+  // columns with the same name — Excel matches those names case-insensitively.
+  await test('the validator catches two table columns with the same name', async () => {
+    const zip = await JSZip.loadAsync(await tableWorkbook())
+    const xml = await zip.file('xl/tables/table1.xml').async('string')
+    zip.file('xl/tables/table1.xml', xml.replace('name="Costs"', 'name="sales"'))
+    const result = await validate(await zip.generateAsync({ type: 'nodebuffer' }))
+    assert.ok(!result.valid, 'duplicate table column names passed the validator')
+    assert.ok(result.errors.some(e => e.includes('both named')),
+      'wrong error: ' + result.errors.join(' | '))
+  })
+
+  await test('the validator catches a table ref that is the wrong width', async () => {
+    const zip = await JSZip.loadAsync(await tableWorkbook())
+    const xml = await zip.file('xl/tables/table1.xml').async('string')
+    const ref = xml.match(/<table\b[^>]*\bref="([^"]+)"/)[1]
+    zip.file('xl/tables/table1.xml',
+      xml.replace(`ref="${ref}"`, 'ref="' + ref.replace(/^([A-Z]+)/, 'A').replace(/:[A-Z]+/, ':B') + '"'))
+    const result = await validate(await zip.generateAsync({ type: 'nodebuffer' }))
+    assert.ok(!result.valid, 'a table ref narrower than its columns passed the validator')
+    assert.ok(result.errors.some(e => e.includes('columns wide')),
+      'wrong error: ' + result.errors.join(' | '))
+  })
+
   console.log(`\n${passed} passed, ${failed} failed`)
   process.exit(failed ? 1 : 0)
 }
