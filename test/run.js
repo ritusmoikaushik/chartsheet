@@ -526,6 +526,63 @@ async function main () {
     }
     assert.strictEqual(Number(def.match(/recordCount="(\d+)"/)[1]), 6)
   })
+
+  // A sheet with an Excel table on it is exactly the sheet that also has a chart,
+  // and <tableParts> comes AFTER <drawing> in the CT_Worksheet sequence.
+  async function tableWorkbook () {
+    const wb = new ExcelJS.Workbook()
+    const ws = wb.addWorksheet('Data')
+    ws.addTable({
+      name: 'Sales',
+      ref: 'A1',
+      headerRow: true,
+      columns: [{ name: 'Month' }, { name: 'Sales' }, { name: 'Costs' }],
+      rows: [['Jan', 120, 90], ['Feb', 150, 95], ['Mar', 180, 110], ['Apr', 140, 105]],
+    })
+    return Buffer.from(await wb.xlsx.writeBuffer())
+  }
+
+  const sheetXmlOf = async buffer =>
+    (await JSZip.loadAsync(buffer)).file('xl/worksheets/sheet1.xml').async('string')
+
+  await test('a chart on a sheet with a table goes before <tableParts>', async () => {
+    const out = await addChart(await tableWorkbook(), barSpec())
+    const xml = await sheetXmlOf(out)
+    assert.ok(xml.includes('<tableParts'), 'test workbook has no table in it')
+    assert.ok(xml.indexOf('<drawing') < xml.indexOf('<tableParts'),
+      '<drawing> written after <tableParts>; Excel offers to repair the file')
+    await assertValid(out, 'chart on a sheet with a table')
+  })
+
+  await test('restored charts land before <tableParts> too', async () => {
+    const original = await addChart(await tableWorkbook(), barSpec())
+
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(original)
+    wb.getWorksheet('Data').getCell('B2').value = 999
+    const rewritten = Buffer.from(await wb.xlsx.writeBuffer())
+    assert.strictEqual(chartCount(await captureCharts(rewritten)), 0, 'exceljs kept the chart?')
+
+    const out = await restoreCharts(rewritten, await captureCharts(original))
+    const xml = await sheetXmlOf(out)
+    assert.ok(xml.includes('<tableParts'), 'exceljs dropped the table as well')
+    assert.ok(xml.indexOf('<drawing') < xml.indexOf('<tableParts'),
+      'restored <drawing> written after <tableParts>')
+    await assertValid(out, 'chart restored onto a sheet with a table')
+  })
+
+  await test('the validator catches a <drawing> written after <tableParts>', async () => {
+    const zip = await JSZip.loadAsync(await addChart(await tableWorkbook(), barSpec()))
+    const xml = await zip.file('xl/worksheets/sheet1.xml').async('string')
+    const element = xml.match(/<drawing\b[^>]*\/>/)[0]
+    zip.file('xl/worksheets/sheet1.xml',
+      xml.replace(element, '').replace('</worksheet>', element + '</worksheet>'))
+    const result = await validate(await zip.generateAsync({ type: 'nodebuffer' }))
+    assert.ok(!result.valid, 'out-of-order <drawing> passed the validator')
+    assert.ok(result.errors.some(e => e.includes('tableParts')),
+      'wrong error: ' + result.errors.join(' | '))
+  })
+
   console.log(`\n${passed} passed, ${failed} failed`)
   process.exit(failed ? 1 : 0)
 }

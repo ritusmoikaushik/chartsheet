@@ -109,6 +109,33 @@ async function resolveSheetPath (zip, sheetName) {
 }
 
 /**
+ * Put a <drawing> reference into a worksheet, in the place the schema requires.
+ *
+ * CT_Worksheet is a fixed sequence, and <drawing> is NOT last in it: legacyDrawing,
+ * picture, oleObjects, controls, webPublishItems, tableParts and extLst all come
+ * after it. Appending before </worksheet> corrupts any sheet that has an Excel
+ * table on it, which is exactly the kind of sheet that also has a chart.
+ */
+const AFTER_DRAWING = [
+  'legacyDrawing', 'legacyDrawingHF', 'picture', 'oleObjects',
+  'controls', 'webPublishItems', 'tableParts', 'extLst',
+]
+
+function insertDrawing (sheetXml, relId) {
+  const element = '<drawing xmlns:r="' + NS.rel + '" r:id="' + relId + '"/>'
+  let at = -1
+  for (const name of AFTER_DRAWING) {
+    for (const opener of ['<' + name + '>', '<' + name + ' ', '<' + name + '/']) {
+      const i = sheetXml.indexOf(opener)
+      if (i !== -1 && (at === -1 || i < at)) at = i
+    }
+  }
+  return at === -1
+    ? sheetXml.replace('</worksheet>', element + '</worksheet>')
+    : sheetXml.slice(0, at) + element + sheetXml.slice(at)
+}
+
+/**
  * A worksheet owns at most ONE drawing part; every chart or image on the sheet is
  * another anchor inside it. Return that part, creating it and wiring it up if absent.
  */
@@ -138,9 +165,7 @@ async function ensureDrawing (zip, sheetPath) {
   sheetRels = addRelationship(sheetRels, relId, 'drawing', `../drawings/drawing${index}.xml`)
   zip.file(sheetRelsPath, sheetRels)
 
-  // <drawing> is the last child of <worksheet>; Excel rejects it out of order
-  zip.file(sheetPath, sheetXml.replace('</worksheet>',
-    `<drawing xmlns:r="${NS.rel}" r:id="${relId}"/></worksheet>`))
+  zip.file(sheetPath, insertDrawing(sheetXml, relId))
 
   return { path }
 }
@@ -193,4 +218,5 @@ module.exports = {
   NS, CT, EMPTY_RELS,
   escapeXml, resolveTarget, relsPathFor, nextRelId, addRelationship, findRelTarget,
   readPart, resolveSheetPath, ensureDrawing, declareContentType, declarePivotCache,
+  insertDrawing,
 }

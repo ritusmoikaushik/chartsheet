@@ -17,6 +17,20 @@ const RE = {
   cacheRecPart: /^xl\/pivotCache\/pivotCacheRecords\d+\.xml$/,
 }
 
+const AFTER_DRAWING = [
+  'legacyDrawing', 'legacyDrawingHF', 'picture', 'oleObjects',
+  'controls', 'webPublishItems', 'tableParts', 'extLst',
+]
+
+const sheetXmlIndex = (xml, name) => {
+  let at = -1
+  for (const opener of ['<' + name + '>', '<' + name + ' ', '<' + name + '/']) {
+    const i = xml.indexOf(opener)
+    if (i !== -1 && (at === -1 || i < at)) at = i
+  }
+  return at
+}
+
 async function validate (workbook) {
   // JSZip takes Buffer, ArrayBuffer, Uint8Array or Blob directly. Only wrap when we
   // have a Buffer to wrap — this file runs in browsers too.
@@ -119,7 +133,19 @@ async function validate (workbook) {
     }
     if (drawingRefs.length && !/<\/sheetData>[\s\S]*<drawing\b/.test(xml)) {
       errors.push(`${sheetPath}: <drawing> appears before </sheetData>; ` +
-        'Excel requires it as the last element')
+        'the schema puts it after the sheet data')
+    }
+    // <drawing> is late in CT_Worksheet but not last: these elements follow it, and
+    // a sheet with an Excel table on it is exactly the sheet that also has a chart
+    if (drawingRefs.length) {
+      const at = sheetXmlIndex(xml, 'drawing')
+      for (const after of AFTER_DRAWING) {
+        const i = sheetXmlIndex(xml, after)
+        if (i !== -1 && i < at) {
+          errors.push(sheetPath + ': <drawing> appears after <' + after + '>; ' +
+            'the schema requires it before, and Excel offers to repair the file')
+        }
+      }
     }
     if (!drawingRefs.length) continue
 

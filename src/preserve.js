@@ -9,7 +9,8 @@
 const JSZip = require('jszip')
 const {
   CT, relsPathFor, nextRelId, addRelationship, findRelTarget,
-  readPart, resolveTarget, resolveSheetPath, declareContentType, NS, EMPTY_RELS,
+  readPart, resolveTarget, resolveSheetPath, declareContentType, insertDrawing,
+  NS, EMPTY_RELS,
 } = require('./package')
 
 const toBuffer = value => Buffer.isBuffer(value) ? value : Buffer.from(value)
@@ -166,8 +167,7 @@ async function restoreCharts (workbook, record) {
       sheetRels, relId, 'drawing', `../drawings/drawing${drawingIndex}.xml`)
     zip.file(sheetRelsPath, sheetRels)
 
-    zip.file(sheetPath, sheetXml.replace('</worksheet>',
-      `<drawing xmlns:r="${NS.rel}" r:id="${relId}"/></worksheet>`))
+    zip.file(sheetPath, insertDrawing(sheetXml, relId))
   }
 
   const out = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })
