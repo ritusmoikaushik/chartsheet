@@ -1,6 +1,6 @@
 {
   "name": "chartsheet",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Write native Excel charts and pivot tables into .xlsx files built with ExcelJS or SheetJS",
   "keywords": [
     "excel",
