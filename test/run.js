@@ -8,7 +8,7 @@ const path = require('path')
 const ExcelJS = require('exceljs')
 const JSZip = require('jszip')
 const {
-  addChart, addCharts, validate, captureCharts, restoreCharts, chartCount,
+  addChart, addCharts, validate, captureCharts, restoreCharts, preserveCharts, chartCount,
   addPivotTable, addPivotTables,
   capturePivotTables, restorePivotTables, preservePivotTables, pivotTableCount,
   preserveAll,
@@ -52,6 +52,57 @@ const barSpec = (over = {}) => ({
   ],
   ...over,
 })
+
+// Give chart1 the parts Excel writes beside every chart it saves: a colour style, a
+// chart style and a user-shapes drawing. addChart writes none of them, so without
+// this no test exercised the part graph a real Excel template carries.
+const CHART_STYLE_NS = 'http://schemas.microsoft.com/office/drawing/2012/chartStyle'
+const EXCEL_CHART_PARTS = {
+  'xl/charts/colors1.xml': ['application/vnd.ms-office.chartcolorstyle+xml',
+    `<cs:colorStyle xmlns:cs="${CHART_STYLE_NS}" ` +
+    'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" meth="cycle" id="10">' +
+    '<a:schemeClr val="accent1"/></cs:colorStyle>'],
+  'xl/charts/style1.xml': ['application/vnd.ms-office.chartstyle+xml',
+    `<cs:chartStyle xmlns:cs="${CHART_STYLE_NS}" id="201"/>`],
+  'xl/drawings/drawing2.xml': ['application/vnd.openxmlformats-officedocument.drawingml.chartshapes+xml',
+    '<c:userShapes xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart"/>'],
+}
+
+async function withExcelChartParts (buffer) {
+  const zip = await JSZip.loadAsync(buffer)
+  let types = await zip.file('[Content_Types].xml').async('string')
+  for (const [part, [type, xml]] of Object.entries(EXCEL_CHART_PARTS)) {
+    zip.file(part, '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + xml)
+    types = types.replace('</Types>', `<Override PartName="/${part}" ContentType="${type}"/></Types>`)
+  }
+  zip.file('[Content_Types].xml', types)
+  zip.file('xl/charts/_rels/chart1.xml.rels',
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.microsoft.com/office/2011/relationships/chartStyle" Target="style1.xml"/>' +
+    '<Relationship Id="rId2" Type="http://schemas.microsoft.com/office/2011/relationships/chartColorStyle" Target="colors1.xml"/>' +
+    '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chartUserShapes" Target="../drawings/drawing2.xml"/>' +
+    '</Relationships>')
+  const chart = await zip.file('xl/charts/chart1.xml').async('string')
+  zip.file('xl/charts/chart1.xml', chart.replace('</c:chartSpace>', '<c:userShapes r:id="rId3"/></c:chartSpace>'))
+  return zip.generateAsync({ type: 'nodebuffer' })
+}
+
+// Chart titles in anchor order, read through the drawing's relationships.
+async function chartTitles (buffer, sheetPath = 'xl/worksheets/sheet1.xml') {
+  const zip = await JSZip.loadAsync(buffer)
+  const target = (rels, id) => rels.match(new RegExp(`Id="${id}"[^>]*Target="([^"]+)"`))[1]
+  const sheetRels = await zip.file(sheetPath.replace('worksheets/', 'worksheets/_rels/') + '.rels').async('string')
+  const sheetXml = await zip.file(sheetPath).async('string')
+  const drawing = 'xl/drawings/' + target(sheetRels, sheetXml.match(/<drawing[^>]*r:id="(rId\d+)"/)[1]).split('/').pop()
+  const drawingRels = await zip.file(drawing.replace('drawings/', 'drawings/_rels/') + '.rels').async('string')
+  const titles = []
+  for (const m of (await zip.file(drawing).async('string')).matchAll(/<c:chart\b[^>]*r:id="(rId\d+)"/g)) {
+    const chart = await zip.file('xl/charts/' + target(drawingRels, m[1]).split('/').pop()).async('string')
+    titles.push((chart.match(/<a:t>([^<]*)<\/a:t>/) || [])[1])
+  }
+  return titles
+}
 
 async function assertValid (buffer, label) {
   const result = await validate(buffer)
@@ -214,6 +265,64 @@ async function main () {
     assert.strictEqual(check.getWorksheet('Data').getCell('B2').value, 999,
       'the edit must survive alongside the chart')
     fs.writeFileSync(path.join(OUT, 'preserved.xlsx'), restored)
+  })
+
+  // issue #1: a template saved by Excel lost its colour and style parts on restore
+  await test('preserveCharts keeps the colour, style and user-shape parts Excel writes', async () => {
+    const original = await withExcelChartParts(
+      await addChart(await baseWorkbook(), barSpec({ title: 'Template' })))
+    await assertValid(original, 'Excel-style template')
+
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(original)
+    wb.getWorksheet('Data').getCell('B2').value = 42
+    const restored = await preserveCharts(original, Buffer.from(await wb.xlsx.writeBuffer()))
+    await assertValid(restored, 'restored Excel-style template')
+
+    const zip = await JSZip.loadAsync(restored)
+    const types = await zip.file('[Content_Types].xml').async('string')
+    const sheetDrawings = []
+    for (const [part, [type, xml]] of Object.entries(EXCEL_CHART_PARTS)) {
+      const stem = part.replace(/\d+\.xml$/, '')
+      const copies = Object.keys(zip.files).filter(n => n.startsWith(stem) && /\d+\.xml$/.test(n))
+      const copy = []
+      for (const name of copies) {
+        if ((await zip.file(name).async('string')).includes(xml)) copy.push(name)
+        else sheetDrawings.push(name)
+      }
+      assert.strictEqual(copy.length, 1, `${part} should be carried across once, found ${copy}`)
+      assert.ok(types.includes(`PartName="/${copy[0]}" ContentType="${type}"`),
+        `${copy[0]} should keep its content type ${type}`)
+    }
+    assert.ok(sheetDrawings.length === 1, 'the sheet drawing and the user shapes must be separate parts')
+    fs.writeFileSync(path.join(OUT, 'preserved-excel-parts.xlsx'), restored)
+  })
+
+  await test('restoring eleven charts keeps chart1 apart from chart10 and chart11', async () => {
+    const titles = Array.from({ length: 11 }, (_, i) => `Chart ${i + 1}`)
+    const original = await addCharts(await baseWorkbook(),
+      titles.map((title, i) => barSpec({ title, anchor: { col: 4, row: 1 + i * 20 } })))
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(original)
+    const restored = await preserveCharts(original, Buffer.from(await wb.xlsx.writeBuffer()))
+    await assertValid(restored, 'eleven charts')
+    assert.deepStrictEqual(await chartTitles(restored), titles)
+  })
+
+  await test('a new chart takes the next free part number, not the count of parts', async () => {
+    // Excel leaves gaps when a chart is deleted: this workbook holds chart2 and no chart1
+    const zip = await JSZip.loadAsync(await addChart(await baseWorkbook(), barSpec({ title: 'Kept' })))
+    zip.file('xl/charts/chart2.xml', await zip.file('xl/charts/chart1.xml').async('string'))
+    zip.remove('xl/charts/chart1.xml')
+    for (const part of ['[Content_Types].xml', 'xl/drawings/_rels/drawing1.xml.rels']) {
+      zip.file(part, (await zip.file(part).async('string')).replace('charts/chart1.xml', 'charts/chart2.xml'))
+    }
+    const gapped = await zip.generateAsync({ type: 'nodebuffer' })
+    await assertValid(gapped, 'gapped')
+
+    const out = await addChart(gapped, barSpec({ title: 'Added' }))
+    await assertValid(out, 'chart added to a gapped workbook')
+    assert.deepStrictEqual(await chartTitles(out), ['Kept', 'Added'])
   })
 
   await test('restoring onto a workbook whose sheet was renamed skips safely', async () => {

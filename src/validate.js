@@ -80,9 +80,11 @@ async function validate (workbook) {
     // The catch-all <Default Extension="xml"> satisfies the check above but NOT Excel:
     // chart, drawing and worksheet parts each need their own Override, and a missing
     // one is a leading cause of "we found a problem with some content".
+    // A chart's user shapes live in a drawingN.xml too, under their own content type.
     const REQUIRED = [
       [RE.chartPart, 'drawingml.chart+xml', 'chart'],
-      [/^xl\/drawings\/drawing\d+\.xml$/, 'officedocument.drawing+xml', 'drawing'],
+      [/^xl\/drawings\/drawing\d+\.xml$/,
+        ['officedocument.drawing+xml', 'drawingml.chartshapes+xml'], 'drawing'],
       [RE.worksheet, 'spreadsheetml.worksheet+xml', 'worksheet'],
       [RE.pivotPart, 'spreadsheetml.pivotTable+xml', 'pivot table'],
       [RE.cacheDefPart, 'spreadsheetml.pivotCacheDefinition+xml', 'pivot cache definition'],
@@ -95,9 +97,9 @@ async function validate (workbook) {
         if (!declared) {
           errors.push(`${name}: no <Override> content type — a ${label} part needs one ` +
             'declared explicitly; the generic xml Default does not satisfy Excel')
-        } else if (!declared.includes(expected)) {
+        } else if (![].concat(expected).some(type => declared.includes(type))) {
           errors.push(`${name}: content type is "${declared}" but a ${label} part must ` +
-            `declare ${expected}`)
+            `declare ${[].concat(expected).join(' or ')}`)
         }
       }
     }

@@ -41,9 +41,32 @@ function resolveTarget (ownerPart, target) {
   return segments.join('/')
 }
 
+// The inverse of resolveTarget: the relative Target that leads from one part to another.
+function relativeTarget (ownerPart, targetPart) {
+  const from = ownerPart.split('/').slice(0, -1)
+  const to = targetPart.split('/')
+  let shared = 0
+  while (shared < from.length && shared < to.length - 1 && from[shared] === to[shared]) shared++
+  return [...from.slice(shared).map(() => '..'), ...to.slice(shared)].join('/')
+}
+
 const relsPathFor = part => {
   const bits = part.split('/')
   return `${bits.slice(0, -1).join('/')}/_rels/${bits[bits.length - 1]}.rels`
+}
+
+// Excel leaves gaps when parts are deleted — a workbook can hold chart2.xml with no
+// chart1.xml — so counting the parts can name one that is already taken. Take the
+// highest number in use instead. Each pattern captures the number.
+const nextPartIndex = (zip, ...patterns) => {
+  let max = 0
+  for (const name of Object.keys(zip.files)) {
+    for (const pattern of patterns) {
+      const m = name.match(pattern)
+      if (m) max = Math.max(max, Number(m[1]))
+    }
+  }
+  return max + 1
 }
 
 const nextRelId = relsXml => {
@@ -153,8 +176,7 @@ async function ensureDrawing (zip, sheetPath) {
     return { path: resolveTarget(sheetPath, target) }
   }
 
-  const index = Object.keys(zip.files)
-    .filter(name => /^xl\/drawings\/drawing\d+\.xml$/.test(name)).length + 1
+  const index = nextPartIndex(zip, /^xl\/drawings\/drawing(\d+)\.xml$/)
   const path = `xl/drawings/drawing${index}.xml`
 
   zip.file(path, '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
@@ -214,9 +236,24 @@ async function declareContentType (zip, partName, contentType) {
     `<Override PartName="${partName}" ContentType="${contentType}"/></Types>`))
 }
 
+// The content type a package gives one part: its Override, else its extension's Default.
+// Attribute order varies between producers, so each attribute is read on its own.
+function contentTypeOf (typesXml, partPath) {
+  const attr = (tag, name) => (tag.match(new RegExp(`\\b${name}\\s*=\\s*"([^"]*)"`)) || [])[1]
+  const ext = partPath.split('.').pop().toLowerCase()
+  let fallback = null
+  for (const tag of typesXml.match(/<(?:\w+:)?(?:Override|Default)\b[^>]*>/g) || []) {
+    const part = attr(tag, 'PartName')
+    if (part && part.toLowerCase() === `/${partPath}`.toLowerCase()) return attr(tag, 'ContentType')
+    if ((attr(tag, 'Extension') || '').toLowerCase() === ext) fallback = attr(tag, 'ContentType')
+  }
+  return fallback
+}
+
 module.exports = {
   NS, CT, EMPTY_RELS,
-  escapeXml, resolveTarget, relsPathFor, nextRelId, addRelationship, findRelTarget,
-  readPart, resolveSheetPath, ensureDrawing, declareContentType, declarePivotCache,
-  insertDrawing,
+  escapeXml, resolveTarget, relativeTarget, relsPathFor, nextPartIndex,
+  nextRelId, addRelationship, findRelTarget,
+  readPart, resolveSheetPath, ensureDrawing, declareContentType, contentTypeOf,
+  declarePivotCache, insertDrawing,
 }

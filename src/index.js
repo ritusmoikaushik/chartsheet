@@ -4,7 +4,7 @@
 
 const JSZip = require('jszip')
 const {
-  NS, CT, escapeXml, relsPathFor, nextRelId, addRelationship,
+  NS, CT, escapeXml, relsPathFor, nextRelId, nextPartIndex, addRelationship,
   readPart, resolveSheetPath, ensureDrawing, declareContentType,
 } = require('./package')
 const { chartXml, validateSpec } = require('./chart-xml')
@@ -57,8 +57,7 @@ async function addChart (workbook, spec) {
   const sheetPath = validated.sheetPath || await resolveSheetPath(zip, validated.sheet)
   const drawing = await ensureDrawing(zip, sheetPath)
 
-  const chartIndex = Object.keys(zip.files)
-    .filter(name => /^xl\/charts\/chart\d+\.xml$/.test(name)).length + 1
+  const chartIndex = nextPartIndex(zip, /^xl\/charts\/chart(\d+)\.xml$/)
   const chartPath = `xl/charts/chart${chartIndex}.xml`
   zip.file(chartPath, chartXml(validated))
 

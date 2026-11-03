@@ -9,7 +9,7 @@
 
 const JSZip = require('jszip')
 const {
-  CT, relsPathFor, nextRelId, addRelationship, resolveTarget,
+  CT, relsPathFor, nextRelId, nextPartIndex, addRelationship, resolveTarget,
   readPart, resolveSheetPath, declareContentType, declarePivotCache, EMPTY_RELS,
 } = require('./package')
 
@@ -113,8 +113,6 @@ const forceRefreshOnLoad = xml => {
   return xml.replace(root[0], updated)
 }
 
-const countMatching = (zip, re) => Object.keys(zip.files).filter(n => re.test(n)).length
-
 /**
  * Put previously captured pivot tables back onto a workbook, matching sheets by name.
  * @returns {Promise<Buffer>} the workbook with its pivot tables restored.
@@ -127,8 +125,8 @@ async function restorePivotTables (workbook, record) {
   const present = new Set(await sheetNames(zip))
   const cacheParts = new Map((record.caches || []).map(c => [c.path, c.parts]))
 
-  let nextPivot = countMatching(zip, PIVOT_PART) + 1
-  let nextCache = countMatching(zip, /^xl\/pivotCache\/pivotCacheDefinition\d+\.xml$/) + 1
+  let nextPivot = nextPartIndex(zip, /^xl\/pivotTables\/pivotTable(\d+)\.xml$/)
+  let nextCache = nextPartIndex(zip, /^xl\/pivotCache\/pivotCache(?:Definition|Records)(\d+)\.xml$/)
 
   // pivot table names are workbook-wide; two called PivotTable1 is a repair prompt
   const usedNames = new Set()
